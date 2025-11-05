@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const http = require('http');
 const url = require('url');
 const { spawn } = require('child_process');
@@ -446,15 +447,37 @@ async function openInPrivateMode(targetUrl) {
       console.log('Opened Chrome in incognito mode (macOS)');
       return;
     } else if (platform === 'win32') {
-      // Windows - 只尝试 Chrome
-      const proc = spawn('cmd', ['/c', 'start', 'chrome', '--incognito', targetUrl], {
-        detached: true,
-        stdio: 'ignore',
-        shell: true
-      });
-      proc.unref();
-      console.log('Opened Chrome in incognito mode (Windows)');
-      return;
+      // Windows - 尝试常见的Chrome安装路径
+      const chromePaths = [
+        process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+      ];
+
+      for (const chromePath of chromePaths) {
+        // 检查文件是否存在
+        if (!fsSync.existsSync(chromePath)) {
+          continue;
+        }
+
+        try {
+          const proc = spawn(chromePath, ['--incognito', targetUrl], {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true  // 隐藏Windows命令行窗口
+          });
+          proc.unref();
+          console.log(`Opened Chrome in incognito mode (Windows): ${chromePath}`);
+          return;
+        } catch (error) {
+          console.error(`Failed to launch Chrome at ${chromePath}:`, error.message);
+          // 尝试下一个路径
+          continue;
+        }
+      }
+
+      // 所有路径都失败了
+      throw new Error('Chrome not found in common paths');
     } else {
       // Linux - 依次尝试常见的Chrome命令
       const chromeCommands = ['google-chrome', 'chromium', 'chromium-browser'];
