@@ -435,90 +435,53 @@ function setupIpcHandlers() {
 async function openInPrivateMode(targetUrl) {
   const platform = process.platform;
 
-  if (platform === 'darwin') {
-    // macOS
-    const browsers = [
-      { command: 'open', args: ['-na', 'Google Chrome', '--args', '--incognito', targetUrl] },
-      { command: 'open', args: ['-na', 'Chromium', '--args', '--incognito', targetUrl] },
-      { command: 'open', args: ['-na', 'Microsoft Edge', '--args', '--inprivate', targetUrl] },
-      { command: 'open', args: ['-na', 'Firefox', '--args', '-private-window', targetUrl] },
-      { command: 'open', args: ['-na', 'Brave Browser', '--args', '--incognito', targetUrl] }
-    ];
+  try {
+    if (platform === 'darwin') {
+      // macOS - 只尝试 Chrome
+      const proc = spawn('open', ['-na', 'Google Chrome', '--args', '--incognito', targetUrl], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      proc.unref(); // 让浏览器进程独立运行
+      console.log('Opened Chrome in incognito mode (macOS)');
+      return;
+    } else if (platform === 'win32') {
+      // Windows - 只尝试 Chrome
+      const proc = spawn('cmd', ['/c', 'start', 'chrome', '--incognito', targetUrl], {
+        detached: true,
+        stdio: 'ignore',
+        shell: true
+      });
+      proc.unref();
+      console.log('Opened Chrome in incognito mode (Windows)');
+      return;
+    } else {
+      // Linux - 依次尝试常见的Chrome命令
+      const chromeCommands = ['google-chrome', 'chromium', 'chromium-browser'];
 
-    for (const browser of browsers) {
-      try {
-        await new Promise((resolve, reject) => {
-          const proc = spawn(browser.command, browser.args);
-          proc.on('error', reject);
-          proc.on('close', (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`Process exited with code ${code}`));
+      for (const command of chromeCommands) {
+        try {
+          const proc = spawn(command, ['--incognito', targetUrl], {
+            detached: true,
+            stdio: 'ignore'
           });
-        });
-        console.log(`Opened in private mode with ${browser.args[2]}`);
-        return;
-      } catch (error) {
-        // 尝试下一个浏览器
-        continue;
+          proc.unref();
+          console.log(`Opened ${command} in incognito mode (Linux)`);
+          return;
+        } catch (error) {
+          // 尝试下一个命令
+          continue;
+        }
       }
-    }
-  } else if (platform === 'win32') {
-    // Windows
-    const browsers = [
-      { command: 'start', args: ['chrome', '--incognito', targetUrl] },
-      { command: 'start', args: ['msedge', '--inprivate', targetUrl] },
-      { command: 'start', args: ['firefox', '-private-window', targetUrl] },
-      { command: 'start', args: ['brave', '--incognito', targetUrl] }
-    ];
 
-    for (const browser of browsers) {
-      try {
-        await new Promise((resolve, reject) => {
-          const proc = spawn(browser.command, browser.args, { shell: true });
-          proc.on('error', reject);
-          proc.on('close', (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`Process exited with code ${code}`));
-          });
-        });
-        console.log(`Opened in private mode with ${browser.args[0]}`);
-        return;
-      } catch (error) {
-        continue;
-      }
+      // 如果所有Chrome命令都失败，抛出错误
+      throw new Error('Chrome not found');
     }
-  } else {
-    // Linux
-    const browsers = [
-      { command: 'google-chrome', args: ['--incognito', targetUrl] },
-      { command: 'chromium', args: ['--incognito', targetUrl] },
-      { command: 'chromium-browser', args: ['--incognito', targetUrl] },
-      { command: 'microsoft-edge', args: ['--inprivate', targetUrl] },
-      { command: 'firefox', args: ['-private-window', targetUrl] },
-      { command: 'brave-browser', args: ['--incognito', targetUrl] }
-    ];
-
-    for (const browser of browsers) {
-      try {
-        await new Promise((resolve, reject) => {
-          const proc = spawn(browser.command, browser.args);
-          proc.on('error', reject);
-          proc.on('close', (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`Process exited with code ${code}`));
-          });
-        });
-        console.log(`Opened in private mode with ${browser.command}`);
-        return;
-      } catch (error) {
-        continue;
-      }
-    }
+  } catch (error) {
+    // 如果Chrome打开失败，使用默认浏览器（非隐私模式）
+    console.warn('Could not open Chrome in private mode, falling back to default browser');
+    await shell.openExternal(targetUrl);
   }
-
-  // 如果所有尝试都失败，使用默认浏览器（非隐私模式）
-  console.warn('Could not open in private mode, falling back to default browser');
-  await shell.openExternal(targetUrl);
 }
 
 app.whenReady().then(async () => {
