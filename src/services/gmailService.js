@@ -74,6 +74,15 @@ class GmailService {
       throw new Error('OAuth2 client not initialized');
     }
 
+    // 备份当前状态，以便失败时恢复
+    const previousAccountId = this.currentAccountId;
+    const previousActiveAccount = this.dbService.getActiveAccount();
+
+    console.log('Starting authorization, current state:', {
+      previousAccountId,
+      previousActiveAccountEmail: previousActiveAccount ? previousActiveAccount.email : 'none'
+    });
+
     try {
       // 创建新的OAuth2客户端实例用于这次授权
       const credentials = await this.loadCredentials();
@@ -84,6 +93,7 @@ class GmailService {
         'http://localhost:3001/callback'
       );
 
+      // 获取token
       const { tokens } = await newOAuth2Client.getToken(code);
       newOAuth2Client.setCredentials(tokens);
 
@@ -92,8 +102,11 @@ class GmailService {
       const profile = await tempGmail.users.getProfile({ userId: 'me' });
       const userEmail = profile.data.emailAddress;
 
+      console.log('New account authorization successful:', userEmail);
+
       // 检查账号是否已存在
       let account = this.dbService.getAccountByEmail(userEmail);
+      let newAccountId;
 
       if (account) {
         // 更新现有账号的 token
@@ -102,16 +115,19 @@ class GmailService {
           refresh_token: tokens.refresh_token,
           token_expiry: tokens.expiry_date
         });
-        this.currentAccountId = account.id;
+        newAccountId = account.id;
+        console.log('Updated existing account:', newAccountId);
       } else {
         // 添加新账号
-        this.currentAccountId = this.dbService.addAccount(userEmail, null, tokens);
+        newAccountId = this.dbService.addAccount(userEmail, null, tokens);
+        console.log('Added new account:', newAccountId);
       }
 
       // 设置为活动账号
-      this.dbService.setActiveAccount(this.currentAccountId);
+      this.dbService.setActiveAccount(newAccountId);
 
-      // 重新设置当前的oauth2Client和gmail实例为新账号
+      // 只有所有操作都成功后，才更新Gmail服务状态
+      this.currentAccountId = newAccountId;
       this.oauth2Client.setCredentials(tokens);
       this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
 
@@ -126,29 +142,88 @@ class GmailService {
       return userEmail;
     } catch (error) {
       console.error('Error in setAuthCode:', error);
+      console.log('Authorization failed, attempting to restore previous state...');
+
+      // 授权失败，尝试恢复之前的活动账号
+      try {
+        if (previousActiveAccount && previousActiveAccount.id) {
+          // 恢复之前的活动账号
+          this.dbService.setActiveAccount(previousActiveAccount.id);
+          this.currentAccountId = previousAccountId;
+
+          // 恢复Gmail服务状态
+          if (previousActiveAccount.access_token) {
+            this.oauth2Client.setCredentials({
+              access_token: previousActiveAccount.access_token,
+              refresh_token: previousActiveAccount.refresh_token,
+              expiry_date: previousActiveAccount.token_expiry
+            });
+            this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+            console.log('Successfully restored previous account:', previousActiveAccount.email);
+          }
+        } else {
+          console.log('No previous account to restore');
+        }
+      } catch (restoreError) {
+        console.error('Failed to restore previous state:', restoreError);
+      }
+
       throw error;
     }
   }
 
   async switchAccount(accountId) {
-    const account = this.dbService.getAccount(accountId);
-    if (!account) {
-      throw new Error('Account not found');
+    // 备份当前状态
+    const previousAccountId = this.currentAccountId;
+    const previousActiveAccount = this.dbService.getActiveAccount();
+
+    try {
+      const account = this.dbService.getAccount(accountId);
+      if (!account) {
+        throw new Error('Account not found');
+      }
+
+      if (!account.access_token) {
+        throw new Error('Account not authorized');
+      }
+
+      console.log('Switching account from', previousActiveAccount ? previousActiveAccount.email : 'none', 'to', account.email);
+
+      // 更新服务状态
+      this.currentAccountId = accountId;
+      this.oauth2Client.setCredentials({
+        access_token: account.access_token,
+        refresh_token: account.refresh_token,
+        expiry_date: account.token_expiry
+      });
+
+      this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+
+      // 更新数据库活动账号
+      this.dbService.setActiveAccount(accountId);
+
+      console.log('Account switched successfully to:', account.email);
+    } catch (error) {
+      console.error('Error switching account:', error);
+
+      // 尝试恢复之前的状态
+      try {
+        if (previousActiveAccount && previousActiveAccount.id) {
+          this.currentAccountId = previousAccountId;
+          this.oauth2Client.setCredentials({
+            access_token: previousActiveAccount.access_token,
+            refresh_token: previousActiveAccount.refresh_token,
+            expiry_date: previousActiveAccount.token_expiry
+          });
+          this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+          console.log('Restored previous account after switch failure');
+        }
+      } catch (restoreError) {
+        console.error('Failed to restore previous account:', restoreError);
+      }
+
+      throw error;
     }
-
-    if (!account.access_token) {
-      throw new Error('Account not authorized');
-    }
-
-    this.currentAccountId = accountId;
-    this.oauth2Client.setCredentials({
-      access_token: account.access_token,
-      refresh_token: account.refresh_token,
-      expiry_date: account.token_expiry
-    });
-
-    this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
-    this.dbService.setActiveAccount(accountId);
   }
 
   async isAuthorized() {
