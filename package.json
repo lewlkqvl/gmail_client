@@ -16,8 +16,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "googleapis": "^128.0.0",
     "electron-store": "^8.1.0",
+    "googleapis": "^128.0.0",
+    "puppeteer-core": "^24.29.0",
     "sql.js": "^1.10.3"
   },
   "devDependencies": {

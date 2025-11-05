@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const http = require('http');
 const url = require('url');
-const { spawn } = require('child_process');
+const puppeteer = require('puppeteer-core');
 const GmailService = require('./services/gmailService');
 const DatabaseService = require('./services/databaseService');
 
@@ -12,6 +12,7 @@ let mainWindow;
 let gmailService;
 let dbService;
 let authServer = null;
+let authBrowser = null; // puppeteer 浏览器实例
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -65,7 +66,7 @@ function startAuthServer() {
             <body>
               <h1 class="error">❌ 授权失败</h1>
               <p>错误: ${error}</p>
-              <p>请关闭此窗口并重试</p>
+              <p>窗口将在3秒后自动关闭...</p>
             </body>
             </html>
           `);
@@ -74,6 +75,20 @@ function startAuthServer() {
           if (mainWindow) {
             mainWindow.webContents.send('auth:failed', error);
           }
+
+          // 3秒后关闭浏览器和服务器
+          setTimeout(async () => {
+            if (authBrowser) {
+              try {
+                await authBrowser.close();
+              } catch (e) {}
+              authBrowser = null;
+            }
+            if (authServer) {
+              authServer.close();
+              authServer = null;
+            }
+          }, 3000);
           return;
         }
 
@@ -111,8 +126,14 @@ function startAuthServer() {
               mainWindow.webContents.send('auth:success', { email });
             }
 
-            // 3秒后关闭服务器
-            setTimeout(() => {
+            // 3秒后关闭浏览器和服务器
+            setTimeout(async () => {
+              if (authBrowser) {
+                try {
+                  await authBrowser.close();
+                } catch (e) {}
+                authBrowser = null;
+              }
               if (authServer) {
                 authServer.close();
                 authServer = null;
@@ -143,6 +164,20 @@ function startAuthServer() {
             if (mainWindow) {
               mainWindow.webContents.send('auth:failed', error.message);
             }
+
+            // 3秒后关闭浏览器和服务器
+            setTimeout(async () => {
+              if (authBrowser) {
+                try {
+                  await authBrowser.close();
+                } catch (e) {}
+                authBrowser = null;
+              }
+              if (authServer) {
+                authServer.close();
+                authServer = null;
+              }
+            }, 3000);
           }
         } else {
           res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -432,77 +467,100 @@ function setupIpcHandlers() {
   });
 }
 
-// 在隐私模式下打开浏览器
-async function openInPrivateMode(targetUrl) {
+// 查找系统中的 Chrome 可执行文件路径
+function findChromePath() {
   const platform = process.platform;
 
-  try {
-    if (platform === 'darwin') {
-      // macOS - 只尝试 Chrome
-      const proc = spawn('open', ['-na', 'Google Chrome', '--args', '--incognito', targetUrl], {
-        detached: true,
-        stdio: 'ignore'
-      });
-      proc.unref(); // 让浏览器进程独立运行
-      console.log('Opened Chrome in incognito mode (macOS)');
-      return;
-    } else if (platform === 'win32') {
-      // Windows - 尝试常见的Chrome安装路径
-      const chromePaths = [
-        process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
-      ];
+  if (platform === 'darwin') {
+    return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  } else if (platform === 'win32') {
+    const chromePaths = [
+      process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+    ];
 
-      for (const chromePath of chromePaths) {
-        // 检查文件是否存在
-        if (!fsSync.existsSync(chromePath)) {
-          continue;
-        }
-
-        try {
-          const proc = spawn(chromePath, ['--incognito', targetUrl], {
-            detached: true,
-            stdio: 'ignore',
-            windowsHide: true  // 隐藏Windows命令行窗口
-          });
-          proc.unref();
-          console.log(`Opened Chrome in incognito mode (Windows): ${chromePath}`);
-          return;
-        } catch (error) {
-          console.error(`Failed to launch Chrome at ${chromePath}:`, error.message);
-          // 尝试下一个路径
-          continue;
-        }
+    for (const chromePath of chromePaths) {
+      if (fsSync.existsSync(chromePath)) {
+        return chromePath;
       }
-
-      // 所有路径都失败了
-      throw new Error('Chrome not found in common paths');
-    } else {
-      // Linux - 依次尝试常见的Chrome命令
-      const chromeCommands = ['google-chrome', 'chromium', 'chromium-browser'];
-
-      for (const command of chromeCommands) {
-        try {
-          const proc = spawn(command, ['--incognito', targetUrl], {
-            detached: true,
-            stdio: 'ignore'
-          });
-          proc.unref();
-          console.log(`Opened ${command} in incognito mode (Linux)`);
-          return;
-        } catch (error) {
-          // 尝试下一个命令
-          continue;
-        }
-      }
-
-      // 如果所有Chrome命令都失败，抛出错误
-      throw new Error('Chrome not found');
     }
+  } else {
+    // Linux
+    const chromeCommands = [
+      '/usr/bin/google-chrome',
+      '/usr/bin/chromium',
+      '/usr/bin/chromium-browser',
+      '/snap/bin/chromium'
+    ];
+
+    for (const chromePath of chromeCommands) {
+      if (fsSync.existsSync(chromePath)) {
+        return chromePath;
+      }
+    }
+  }
+
+  return null;
+}
+
+// 使用 Puppeteer 在隐私模式下打开浏览器
+async function openInPrivateMode(targetUrl) {
+  try {
+    // 如果已有浏览器实例在运行，先关闭
+    if (authBrowser) {
+      try {
+        await authBrowser.close();
+      } catch (e) {
+        console.error('Error closing previous browser:', e);
+      }
+      authBrowser = null;
+    }
+
+    // 查找 Chrome 路径
+    const chromePath = findChromePath();
+    if (!chromePath) {
+      throw new Error('Chrome executable not found');
+    }
+
+    console.log('Launching Chrome at:', chromePath);
+
+    // 启动浏览器
+    authBrowser = await puppeteer.launch({
+      executablePath: chromePath,
+      headless: false, // 显示浏览器窗口
+      args: [
+        '--incognito', // 隐私模式
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled'
+      ],
+      defaultViewport: {
+        width: 1280,
+        height: 800
+      }
+    });
+
+    // 创建新页面（已经在隐私模式下了）
+    const pages = await authBrowser.pages();
+    const page = pages[0] || await authBrowser.newPage();
+
+    // 导航到授权 URL
+    await page.goto(targetUrl, { waitUntil: 'networkidle2' });
+
+    console.log('Opened authorization page in incognito mode');
+
+    // 监听浏览器关闭事件
+    authBrowser.on('disconnected', () => {
+      console.log('Browser closed by user');
+      authBrowser = null;
+    });
+
   } catch (error) {
-    // 如果Chrome打开失败，使用默认浏览器（非隐私模式）
-    console.warn('Could not open Chrome in private mode, falling back to default browser');
+    console.error('Error launching Chrome with Puppeteer:', error);
+    // 如果 Puppeteer 失败，回退到默认浏览器
+    console.warn('Falling back to default browser');
     await shell.openExternal(targetUrl);
   }
 }
