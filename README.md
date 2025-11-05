@@ -33,6 +33,12 @@
 - **sql.js** - SQLite 纯 JavaScript 实现（无需原生模块编译）
 - **electron-store** - 配置存储
 
+## ⚠️ 重要：首次使用前的准备
+
+在安装和运行应用之前，你需要先配置 Gmail API 凭据。这是一次性配置，之后就可以一直使用。
+
+**📖 详细配置指南：[SETUP_CREDENTIALS.md](SETUP_CREDENTIALS.md)**
+
 ## 安装步骤
 
 ### 1. 克隆项目
@@ -50,7 +56,9 @@ npm install
 
 **注意**：本项目使用 `sql.js`（纯 JavaScript 实现的 SQLite），无需原生模块编译，安装即可使用。
 
-### 3. 配置 Gmail API
+### 3. 配置 Gmail API（必需！）
+
+**⚡ 快速链接：完整配置指南请查看 [SETUP_CREDENTIALS.md](SETUP_CREDENTIALS.md)**
 
 #### 3.1 创建 Google Cloud 项目
 
