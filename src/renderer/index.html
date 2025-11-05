@@ -16,8 +16,17 @@
         <button id="auth-btn" class="btn btn-primary">授权 Gmail 访问</button>
 
         <div id="auth-code-container" class="hidden">
-          <p>请在浏览器中完成授权，然后粘贴授权码：</p>
-          <input type="text" id="auth-code-input" placeholder="输入授权码">
+          <div class="auth-instructions">
+            <h3>📋 获取授权码</h3>
+            <ol>
+              <li>在浏览器中完成 Google 账号授权</li>
+              <li>授权后，浏览器会跳转到一个<strong>无法打开的页面</strong>（这是正常的）</li>
+              <li>从浏览器<strong>地址栏</strong>复制 <code>code=</code> 后面的授权码</li>
+              <li>粘贴到下方输入框并提交</li>
+            </ol>
+            <p class="hint">💡 提示：授权码通常以 <code>4/0A...</code> 开头</p>
+          </div>
+          <input type="text" id="auth-code-input" placeholder="粘贴授权码，例如：4/0Ab32j91Lp...">
           <button id="submit-auth-code-btn" class="btn btn-primary">提交授权码</button>
         </div>
 

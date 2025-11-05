@@ -52,10 +52,56 @@ body {
 
 #auth-code-input {
   padding: 10px;
-  width: 300px;
+  width: 500px;
   margin: 10px 0;
   border: 1px solid #ddd;
   border-radius: 4px;
+  font-size: 14px;
+}
+
+.auth-instructions {
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px auto;
+  max-width: 600px;
+  text-align: left;
+}
+
+.auth-instructions h3 {
+  margin: 0 0 15px 0;
+  color: #1a73e8;
+  font-size: 18px;
+}
+
+.auth-instructions ol {
+  margin: 15px 0;
+  padding-left: 25px;
+}
+
+.auth-instructions li {
+  margin: 10px 0;
+  line-height: 1.6;
+  color: #333;
+}
+
+.auth-instructions code {
+  background-color: #e8f0fe;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #1a73e8;
+}
+
+.auth-instructions .hint {
+  margin: 15px 0 0 0;
+  padding: 10px;
+  background-color: #fff3cd;
+  border-left: 3px solid #ffc107;
+  border-radius: 4px;
+  color: #856404;
   font-size: 14px;
 }
 
