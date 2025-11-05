@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gmail 客户端</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 授权界面 -->
+    <div id="auth-screen" class="screen">
+      <div class="auth-container">
+        <h1>Gmail 客户端</h1>
+        <p>请先进行 Google 账号授权</p>
+        <button id="auth-btn" class="btn btn-primary">授权 Gmail 访问</button>
+
+        <div id="auth-code-container" class="hidden">
+          <p>请在浏览器中完成授权，然后粘贴授权码：</p>
+          <input type="text" id="auth-code-input" placeholder="输入授权码">
+          <button id="submit-auth-code-btn" class="btn btn-primary">提交授权码</button>
+        </div>
+
+        <div id="auth-error" class="error hidden"></div>
+      </div>
+    </div>
+
+    <!-- 主界面 -->
+    <div id="main-screen" class="screen hidden">
+      <div class="header">
+        <h1>Gmail 客户端</h1>
+        <button id="compose-btn" class="btn btn-primary">写邮件</button>
+        <button id="refresh-btn" class="btn">刷新</button>
+      </div>
+
+      <div class="content">
+        <!-- 邮件列表 -->
+        <div class="mail-list">
+          <div id="loading" class="loading hidden">加载中...</div>
+          <div id="mail-list-container"></div>
+        </div>
+
+        <!-- 邮件详情 -->
+        <div class="mail-detail">
+          <div id="mail-detail-empty" class="empty-state">
+            选择一封邮件查看详情
+          </div>
+          <div id="mail-detail-container" class="hidden">
+            <div class="mail-detail-header">
+              <h2 id="detail-subject"></h2>
+              <div class="mail-actions">
+                <button id="reply-btn" class="btn btn-sm">回复</button>
+                <button id="delete-btn" class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+            <div class="mail-meta">
+              <div><strong>发件人：</strong> <span id="detail-from"></span></div>
+              <div><strong>收件人：</strong> <span id="detail-to"></span></div>
+              <div><strong>日期：</strong> <span id="detail-date"></span></div>
+            </div>
+            <div class="mail-body" id="detail-body"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 写邮件模态框 -->
+    <div id="compose-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>写邮件</h2>
+          <button id="close-modal-btn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="compose-to">收件人：</label>
+            <input type="email" id="compose-to" placeholder="recipient@example.com" required>
+          </div>
+          <div class="form-group">
+            <label for="compose-subject">主题：</label>
+            <input type="text" id="compose-subject" placeholder="邮件主题" required>
+          </div>
+          <div class="form-group">
+            <label for="compose-message">内容：</label>
+            <textarea id="compose-message" rows="10" placeholder="邮件内容" required></textarea>
+          </div>
+          <div class="modal-footer">
+            <button id="send-btn" class="btn btn-primary">发送</button>
+            <button id="cancel-btn" class="btn">取消</button>
+          </div>
+          <div id="compose-error" class="error hidden"></div>
+          <div id="compose-success" class="success hidden"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

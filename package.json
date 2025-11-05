@@ -1,0 +1,25 @@
+{
+  "name": "gmail-electron-client",
+  "version": "1.0.0",
+  "description": "A Gmail client built with Electron and Node.js",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --inspect"
+  },
+  "keywords": [
+    "gmail",
+    "electron",
+    "email",
+    "client"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "googleapis": "^128.0.0",
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0"
+  }
+}
