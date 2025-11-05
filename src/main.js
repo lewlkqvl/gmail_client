@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const GmailService = require('./services/gmailService');
@@ -261,6 +261,19 @@ function setupIpcHandlers() {
       const stats = dbService.getMessageStats(accountId);
       return { success: true, stats };
     } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ==================== Shell 工具函数 ====================
+
+  // 打开外部链接
+  ipcMain.handle('shell:openExternal', async (event, url) => {
+    try {
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (error) {
+      console.error('Error opening external URL:', error);
       return { success: false, error: error.message };
     }
   });

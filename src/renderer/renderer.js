@@ -73,13 +73,30 @@ async function loadActiveAccount() {
 
 // 授权按钮点击
 authBtn.addEventListener('click', async () => {
-  const result = await window.gmailAPI.authorize();
-  if (result.success) {
-    window.gmailAPI.openExternal(result.authUrl);
-    authCodeContainer.classList.remove('hidden');
-    authError.classList.add('hidden');
-  } else {
-    showError(authError, result.error);
+  console.log('授权按钮被点击');
+  authBtn.disabled = true;
+  authBtn.textContent = '正在获取授权链接...';
+
+  try {
+    const result = await window.gmailAPI.authorize();
+    console.log('授权结果:', result);
+
+    if (result.success) {
+      console.log('授权 URL:', result.authUrl);
+      await window.gmailAPI.openExternal(result.authUrl);
+      authCodeContainer.classList.remove('hidden');
+      authError.classList.add('hidden');
+      authBtn.textContent = '授权 Gmail 访问';
+    } else {
+      showError(authError, result.error);
+      authBtn.textContent = '授权 Gmail 访问';
+    }
+  } catch (error) {
+    console.error('授权过程出错:', error);
+    showError(authError, error.message);
+    authBtn.textContent = '授权 Gmail 访问';
+  } finally {
+    authBtn.disabled = false;
   }
 });
 
