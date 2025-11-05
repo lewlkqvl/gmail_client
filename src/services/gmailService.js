@@ -74,35 +74,46 @@ class GmailService {
       throw new Error('OAuth2 client not initialized');
     }
 
-    const { tokens } = await this.oauth2Client.getToken(code);
-    this.oauth2Client.setCredentials(tokens);
+    try {
+      const { tokens } = await this.oauth2Client.getToken(code);
+      this.oauth2Client.setCredentials(tokens);
 
-    // 初始化 Gmail API 获取用户邮箱
-    const gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
-    const profile = await gmail.users.getProfile({ userId: 'me' });
-    const userEmail = profile.data.emailAddress;
+      // 初始化 Gmail API 获取用户邮箱
+      this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+      const profile = await this.gmail.users.getProfile({ userId: 'me' });
+      const userEmail = profile.data.emailAddress;
 
-    // 检查账号是否已存在
-    let account = this.dbService.getAccountByEmail(userEmail);
+      // 检查账号是否已存在
+      let account = this.dbService.getAccountByEmail(userEmail);
 
-    if (account) {
-      // 更新现有账号的 token
-      this.dbService.updateAccount(account.id, {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        token_expiry: tokens.expiry_date
+      if (account) {
+        // 更新现有账号的 token
+        this.dbService.updateAccount(account.id, {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          token_expiry: tokens.expiry_date
+        });
+        this.currentAccountId = account.id;
+      } else {
+        // 添加新账号
+        this.currentAccountId = this.dbService.addAccount(userEmail, null, tokens);
+      }
+
+      // 设置为活动账号
+      this.dbService.setActiveAccount(this.currentAccountId);
+
+      console.log('Authorization completed successfully:', {
+        email: userEmail,
+        accountId: this.currentAccountId,
+        hasGmail: !!this.gmail,
+        hasTokens: !!tokens.access_token
       });
-      this.currentAccountId = account.id;
-    } else {
-      // 添加新账号
-      this.currentAccountId = this.dbService.addAccount(userEmail, null, tokens);
+
+      return userEmail;
+    } catch (error) {
+      console.error('Error in setAuthCode:', error);
+      throw error;
     }
-
-    // 设置为活动账号
-    this.dbService.setActiveAccount(this.currentAccountId);
-    this.gmail = gmail;
-
-    return userEmail;
   }
 
   async switchAccount(accountId) {
@@ -132,8 +143,35 @@ class GmailService {
   }
 
   async syncMessages(maxResults = 50) {
+    console.log('syncMessages called:', {
+      hasGmail: !!this.gmail,
+      hasCurrentAccountId: !!this.currentAccountId,
+      hasOAuth2Client: !!this.oauth2Client,
+      currentAccountId: this.currentAccountId
+    });
+
     if (!this.gmail || !this.currentAccountId) {
-      throw new Error('Not authorized. Please authorize first.');
+      // 尝试重新初始化
+      const activeAccount = this.dbService.getActiveAccount();
+      console.log('Active account from DB:', {
+        hasAccount: !!activeAccount,
+        hasAccessToken: activeAccount ? !!activeAccount.access_token : false,
+        accountId: activeAccount ? activeAccount.id : null
+      });
+
+      if (activeAccount && activeAccount.access_token) {
+        // 重新设置凭据和Gmail实例
+        this.currentAccountId = activeAccount.id;
+        this.oauth2Client.setCredentials({
+          access_token: activeAccount.access_token,
+          refresh_token: activeAccount.refresh_token,
+          expiry_date: activeAccount.token_expiry
+        });
+        this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+        console.log('Gmail service reinitialized from database');
+      } else {
+        throw new Error('Not authorized. Please authorize first.');
+      }
     }
 
     const response = await this.gmail.users.messages.list({
@@ -311,6 +349,12 @@ class GmailService {
   }
 
   getCurrentAccountId() {
+    if (!this.currentAccountId) {
+      const activeAccount = this.dbService.getActiveAccount();
+      if (activeAccount) {
+        this.currentAccountId = activeAccount.id;
+      }
+    }
     return this.currentAccountId;
   }
 }
