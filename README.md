@@ -48,6 +48,8 @@ cd gmail_client
 npm install
 ```
 
+**注意**：如果遇到 `NODE_MODULE_VERSION` 错误，请参考 [INSTALL.md](INSTALL.md) 中的解决方法。这是因为 `better-sqlite3` 需要针对 Electron 版本重新编译。
+
 ### 3. 配置 Gmail API
 
 #### 3.1 创建 Google Cloud 项目
