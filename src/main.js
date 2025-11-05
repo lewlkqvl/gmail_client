@@ -271,12 +271,16 @@ app.whenReady().then(async () => {
     // 初始化数据库服务
     dbService = new DatabaseService();
     await dbService.initialize();
+    console.log('Database service initialized');
 
     // 初始化 Gmail 服务
     gmailService = new GmailService(dbService);
+    await gmailService.initialize();
+    console.log('Gmail service initialized');
 
     // 注册 IPC 处理程序
     setupIpcHandlers();
+    console.log('IPC handlers registered');
 
     // 创建窗口
     createWindow();
@@ -288,6 +292,14 @@ app.whenReady().then(async () => {
     });
   } catch (error) {
     console.error('Error initializing application:', error);
+    console.error('Stack trace:', error.stack);
+
+    // 如果是 credentials.json 不存在的错误，显示友好提示
+    if (error.message.includes('credentials.json')) {
+      console.log('\n⚠️  请先配置 Gmail API credentials.json 文件');
+      console.log('📝 参考 README.md 中的配置说明\n');
+    }
+
     app.quit();
   }
 });

@@ -11,10 +11,10 @@ class GmailService {
     this.oauth2Client = null;
     this.gmail = null;
     this.currentAccountId = null;
-    this.initializeClient();
+    this.initialized = false;
   }
 
-  async initializeClient() {
+  async initialize() {
     try {
       const credentials = await this.loadCredentials();
       const { client_secret, client_id, redirect_uris } = credentials.installed;
@@ -36,8 +36,12 @@ class GmailService {
         });
         this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
       }
+
+      this.initialized = true;
+      console.log('Gmail service initialized successfully');
     } catch (error) {
       console.error('Error initializing Gmail client:', error.message);
+      throw error;
     }
   }
 
