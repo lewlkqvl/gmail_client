@@ -75,12 +75,21 @@ class GmailService {
     }
 
     try {
-      const { tokens } = await this.oauth2Client.getToken(code);
-      this.oauth2Client.setCredentials(tokens);
+      // 创建新的OAuth2客户端实例用于这次授权
+      const credentials = await this.loadCredentials();
+      const { client_secret, client_id } = credentials.installed;
+      const newOAuth2Client = new google.auth.OAuth2(
+        client_id,
+        client_secret,
+        'http://localhost:3001/callback'
+      );
+
+      const { tokens } = await newOAuth2Client.getToken(code);
+      newOAuth2Client.setCredentials(tokens);
 
       // 初始化 Gmail API 获取用户邮箱
-      this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
-      const profile = await this.gmail.users.getProfile({ userId: 'me' });
+      const tempGmail = google.gmail({ version: 'v1', auth: newOAuth2Client });
+      const profile = await tempGmail.users.getProfile({ userId: 'me' });
       const userEmail = profile.data.emailAddress;
 
       // 检查账号是否已存在
@@ -102,11 +111,16 @@ class GmailService {
       // 设置为活动账号
       this.dbService.setActiveAccount(this.currentAccountId);
 
+      // 重新设置当前的oauth2Client和gmail实例为新账号
+      this.oauth2Client.setCredentials(tokens);
+      this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+
       console.log('Authorization completed successfully:', {
         email: userEmail,
         accountId: this.currentAccountId,
         hasGmail: !!this.gmail,
-        hasTokens: !!tokens.access_token
+        hasTokens: !!tokens.access_token,
+        tokenPreview: tokens.access_token ? tokens.access_token.substring(0, 20) + '...' : 'none'
       });
 
       return userEmail;
@@ -143,35 +157,42 @@ class GmailService {
   }
 
   async syncMessages(maxResults = 50) {
+    // 总是从数据库重新加载活动账号，确保状态同步
+    const activeAccount = this.dbService.getActiveAccount();
+
     console.log('syncMessages called:', {
       hasGmail: !!this.gmail,
       hasCurrentAccountId: !!this.currentAccountId,
       hasOAuth2Client: !!this.oauth2Client,
-      currentAccountId: this.currentAccountId
+      currentAccountId: this.currentAccountId,
+      activeAccountFromDB: activeAccount ? activeAccount.id : null,
+      activeAccountEmail: activeAccount ? activeAccount.email : null,
+      activeAccountHasToken: activeAccount ? !!activeAccount.access_token : false
     });
 
-    if (!this.gmail || !this.currentAccountId) {
-      // 尝试重新初始化
-      const activeAccount = this.dbService.getActiveAccount();
-      console.log('Active account from DB:', {
-        hasAccount: !!activeAccount,
-        hasAccessToken: activeAccount ? !!activeAccount.access_token : false,
-        accountId: activeAccount ? activeAccount.id : null
+    if (!activeAccount || !activeAccount.access_token) {
+      throw new Error('Not authorized. Please authorize first.');
+    }
+
+    // 如果当前账号ID与数据库中的活动账号不一致，或Gmail实例不存在，重新初始化
+    if (!this.gmail || !this.currentAccountId || this.currentAccountId !== activeAccount.id) {
+      console.log('Reinitializing Gmail service with active account:', {
+        reason: !this.gmail ? 'no gmail instance' :
+                !this.currentAccountId ? 'no current account id' :
+                'account id mismatch',
+        oldAccountId: this.currentAccountId,
+        newAccountId: activeAccount.id
       });
 
-      if (activeAccount && activeAccount.access_token) {
-        // 重新设置凭据和Gmail实例
-        this.currentAccountId = activeAccount.id;
-        this.oauth2Client.setCredentials({
-          access_token: activeAccount.access_token,
-          refresh_token: activeAccount.refresh_token,
-          expiry_date: activeAccount.token_expiry
-        });
-        this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
-        console.log('Gmail service reinitialized from database');
-      } else {
-        throw new Error('Not authorized. Please authorize first.');
-      }
+      // 重新设置凭据和Gmail实例
+      this.currentAccountId = activeAccount.id;
+      this.oauth2Client.setCredentials({
+        access_token: activeAccount.access_token,
+        refresh_token: activeAccount.refresh_token,
+        expiry_date: activeAccount.token_expiry
+      });
+      this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+      console.log('Gmail service reinitialized successfully');
     }
 
     const response = await this.gmail.users.messages.list({
