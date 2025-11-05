@@ -17,12 +17,13 @@ class GmailService {
   async initialize() {
     try {
       const credentials = await this.loadCredentials();
-      const { client_secret, client_id, redirect_uris } = credentials.installed;
+      const { client_secret, client_id } = credentials.installed;
 
+      // 使用本地服务器作为重定向 URI
       this.oauth2Client = new google.auth.OAuth2(
         client_id,
         client_secret,
-        redirect_uris[0]
+        'http://localhost:3001/callback'
       );
 
       // 尝试加载活动账号的 token

@@ -50,6 +50,10 @@
 4. 在"应用类型"下拉框中选择 **"桌面应用"**
 5. 输入名称：`Gmail Desktop Client`（或任意名称）
 6. 点击 **"创建"**
+7. **重要**：创建后，点击刚创建的凭据进行编辑
+8. 在"已获授权的重定向 URI"部分，点击 **"+ 添加 URI"**
+9. 输入：`http://localhost:3001/callback`
+10. 点击 **"保存"**
 
 ### 第五步：下载凭据文件
 
@@ -78,7 +82,7 @@ gmail_client/
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
     "client_secret": "YOUR_CLIENT_SECRET",
-    "redirect_uris": ["http://localhost"]
+    "redirect_uris": ["http://localhost:3001/callback"]
   }
 }
 ```

@@ -7,9 +7,7 @@ let currentAccounts = [];
 const authScreen = document.getElementById('auth-screen');
 const mainScreen = document.getElementById('main-screen');
 const authBtn = document.getElementById('auth-btn');
-const authCodeContainer = document.getElementById('auth-code-container');
-const authCodeInput = document.getElementById('auth-code-input');
-const submitAuthCodeBtn = document.getElementById('submit-auth-code-btn');
+const authWaiting = document.getElementById('auth-waiting');
 const authError = document.getElementById('auth-error');
 
 const accountInfo = document.getElementById('account-info');
@@ -49,6 +47,26 @@ async function initialize() {
   } else {
     showAuthScreen();
   }
+
+  // 监听授权成功事件
+  window.gmailAPI.onAuthSuccess(async (data) => {
+    console.log('授权成功:', data);
+    // 切换到主界面
+    showMainScreen();
+    await loadActiveAccount();
+    await syncMessages();
+  });
+
+  // 监听授权失败事件
+  window.gmailAPI.onAuthFailed((error) => {
+    console.error('授权失败:', error);
+    showError(authError, '授权失败: ' + error);
+    // 恢复授权按钮
+    authWaiting.classList.add('hidden');
+    authBtn.classList.remove('hidden');
+    authBtn.disabled = false;
+    authBtn.textContent = '授权 Gmail 访问';
+  });
 }
 
 // 显示授权界面
@@ -75,7 +93,7 @@ async function loadActiveAccount() {
 authBtn.addEventListener('click', async () => {
   console.log('授权按钮被点击');
   authBtn.disabled = true;
-  authBtn.textContent = '正在获取授权链接...';
+  authBtn.textContent = '正在启动授权...';
 
   try {
     const result = await window.gmailAPI.authorize();
@@ -83,38 +101,22 @@ authBtn.addEventListener('click', async () => {
 
     if (result.success) {
       console.log('授权 URL:', result.authUrl);
+      // 打开浏览器授权页面（隐私模式）
       await window.gmailAPI.openExternal(result.authUrl);
-      authCodeContainer.classList.remove('hidden');
+      // 显示等待界面
+      authWaiting.classList.remove('hidden');
       authError.classList.add('hidden');
-      authBtn.textContent = '授权 Gmail 访问';
+      authBtn.classList.add('hidden');
     } else {
       showError(authError, result.error);
       authBtn.textContent = '授权 Gmail 访问';
+      authBtn.disabled = false;
     }
   } catch (error) {
     console.error('授权过程出错:', error);
     showError(authError, error.message);
     authBtn.textContent = '授权 Gmail 访问';
-  } finally {
     authBtn.disabled = false;
-  }
-});
-
-// 提交授权码
-submitAuthCodeBtn.addEventListener('click', async () => {
-  const code = authCodeInput.value.trim();
-  if (!code) {
-    showError(authError, '请输入授权码');
-    return;
-  }
-
-  const result = await window.gmailAPI.setAuthCode(code);
-  if (result.success) {
-    showMainScreen();
-    await loadActiveAccount();
-    await syncMessages();
-  } else {
-    showError(authError, result.error);
   }
 });
 

@@ -1,12 +1,16 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const http = require('http');
+const url = require('url');
+const { spawn } = require('child_process');
 const GmailService = require('./services/gmailService');
 const DatabaseService = require('./services/databaseService');
 
 let mainWindow;
 let gmailService;
 let dbService;
+let authServer = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -29,12 +33,159 @@ function createWindow() {
   });
 }
 
+// 创建授权回调服务器
+function startAuthServer() {
+  return new Promise((resolve, reject) => {
+    // 如果服务器已经在运行，先关闭
+    if (authServer) {
+      authServer.close();
+    }
+
+    authServer = http.createServer(async (req, res) => {
+      const parsedUrl = url.parse(req.url, true);
+
+      if (parsedUrl.pathname === '/callback') {
+        const code = parsedUrl.query.code;
+        const error = parsedUrl.query.error;
+
+        if (error) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <title>授权失败</title>
+              <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                .error { color: #d32f2f; }
+              </style>
+            </head>
+            <body>
+              <h1 class="error">❌ 授权失败</h1>
+              <p>错误: ${error}</p>
+              <p>请关闭此窗口并重试</p>
+            </body>
+            </html>
+          `);
+
+          // 通知前端授权失败
+          if (mainWindow) {
+            mainWindow.webContents.send('auth:failed', error);
+          }
+          return;
+        }
+
+        if (code) {
+          try {
+            // 自动保存授权码
+            const email = await gmailService.setAuthCode(code);
+
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="utf-8">
+                <title>授权成功</title>
+                <style>
+                  body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                  .success { color: #388e3c; }
+                  .email { font-weight: bold; color: #1976d2; }
+                </style>
+                <script>
+                  setTimeout(() => window.close(), 3000);
+                </script>
+              </head>
+              <body>
+                <h1 class="success">✅ 授权成功！</h1>
+                <p>账号: <span class="email">${email}</span></p>
+                <p>窗口将在3秒后自动关闭...</p>
+              </body>
+              </html>
+            `);
+
+            // 通知前端授权成功
+            if (mainWindow) {
+              mainWindow.webContents.send('auth:success', { email });
+            }
+
+            // 3秒后关闭服务器
+            setTimeout(() => {
+              if (authServer) {
+                authServer.close();
+                authServer = null;
+              }
+            }, 3000);
+          } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="utf-8">
+                <title>保存授权失败</title>
+                <style>
+                  body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                  .error { color: #d32f2f; }
+                </style>
+              </head>
+              <body>
+                <h1 class="error">❌ 保存授权失败</h1>
+                <p>${error.message}</p>
+                <p>请关闭此窗口并重试</p>
+              </body>
+              </html>
+            `);
+
+            // 通知前端授权失败
+            if (mainWindow) {
+              mainWindow.webContents.send('auth:failed', error.message);
+            }
+          }
+        } else {
+          res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <title>缺少授权码</title>
+            </head>
+            <body>
+              <h1>❌ 缺少授权码</h1>
+              <p>请关闭此窗口并重试</p>
+            </body>
+            </html>
+          `);
+        }
+      } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+      }
+    });
+
+    authServer.listen(3001, 'localhost', () => {
+      console.log('Authorization server started on http://localhost:3001');
+      resolve();
+    });
+
+    authServer.on('error', (error) => {
+      console.error('Authorization server error:', error);
+      reject(error);
+    });
+  });
+}
+
 function setupIpcHandlers() {
   // ==================== Gmail IPC 处理程序 ====================
 
   // 授权
   ipcMain.handle('gmail:authorize', async () => {
     try {
+      // 先启动授权服务器
+      await startAuthServer();
+
       const authUrl = await gmailService.getAuthUrl();
       return { success: true, authUrl };
     } catch (error) {
@@ -267,16 +418,107 @@ function setupIpcHandlers() {
 
   // ==================== Shell 工具函数 ====================
 
-  // 打开外部链接
-  ipcMain.handle('shell:openExternal', async (event, url) => {
+  // 在隐私模式下打开外部链接
+  ipcMain.handle('shell:openExternal', async (event, targetUrl) => {
     try {
-      await shell.openExternal(url);
+      // 在隐私模式下打开浏览器
+      await openInPrivateMode(targetUrl);
       return { success: true };
     } catch (error) {
       console.error('Error opening external URL:', error);
       return { success: false, error: error.message };
     }
   });
+}
+
+// 在隐私模式下打开浏览器
+async function openInPrivateMode(targetUrl) {
+  const platform = process.platform;
+
+  if (platform === 'darwin') {
+    // macOS
+    const browsers = [
+      { command: 'open', args: ['-na', 'Google Chrome', '--args', '--incognito', targetUrl] },
+      { command: 'open', args: ['-na', 'Chromium', '--args', '--incognito', targetUrl] },
+      { command: 'open', args: ['-na', 'Microsoft Edge', '--args', '--inprivate', targetUrl] },
+      { command: 'open', args: ['-na', 'Firefox', '--args', '-private-window', targetUrl] },
+      { command: 'open', args: ['-na', 'Brave Browser', '--args', '--incognito', targetUrl] }
+    ];
+
+    for (const browser of browsers) {
+      try {
+        await new Promise((resolve, reject) => {
+          const proc = spawn(browser.command, browser.args);
+          proc.on('error', reject);
+          proc.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`Process exited with code ${code}`));
+          });
+        });
+        console.log(`Opened in private mode with ${browser.args[2]}`);
+        return;
+      } catch (error) {
+        // 尝试下一个浏览器
+        continue;
+      }
+    }
+  } else if (platform === 'win32') {
+    // Windows
+    const browsers = [
+      { command: 'start', args: ['chrome', '--incognito', targetUrl] },
+      { command: 'start', args: ['msedge', '--inprivate', targetUrl] },
+      { command: 'start', args: ['firefox', '-private-window', targetUrl] },
+      { command: 'start', args: ['brave', '--incognito', targetUrl] }
+    ];
+
+    for (const browser of browsers) {
+      try {
+        await new Promise((resolve, reject) => {
+          const proc = spawn(browser.command, browser.args, { shell: true });
+          proc.on('error', reject);
+          proc.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`Process exited with code ${code}`));
+          });
+        });
+        console.log(`Opened in private mode with ${browser.args[0]}`);
+        return;
+      } catch (error) {
+        continue;
+      }
+    }
+  } else {
+    // Linux
+    const browsers = [
+      { command: 'google-chrome', args: ['--incognito', targetUrl] },
+      { command: 'chromium', args: ['--incognito', targetUrl] },
+      { command: 'chromium-browser', args: ['--incognito', targetUrl] },
+      { command: 'microsoft-edge', args: ['--inprivate', targetUrl] },
+      { command: 'firefox', args: ['-private-window', targetUrl] },
+      { command: 'brave-browser', args: ['--incognito', targetUrl] }
+    ];
+
+    for (const browser of browsers) {
+      try {
+        await new Promise((resolve, reject) => {
+          const proc = spawn(browser.command, browser.args);
+          proc.on('error', reject);
+          proc.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`Process exited with code ${code}`));
+          });
+        });
+        console.log(`Opened in private mode with ${browser.command}`);
+        return;
+      } catch (error) {
+        continue;
+      }
+    }
+  }
+
+  // 如果所有尝试都失败，使用默认浏览器（非隐私模式）
+  console.warn('Could not open in private mode, falling back to default browser');
+  await shell.openExternal(targetUrl);
 }
 
 app.whenReady().then(async () => {

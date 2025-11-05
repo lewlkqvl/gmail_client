@@ -28,5 +28,13 @@ contextBridge.exposeInMainWorld('gmailAPI', {
   },
 
   // 工具函数
-  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url)
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+
+  // 事件监听
+  onAuthSuccess: (callback) => {
+    ipcRenderer.on('auth:success', (event, data) => callback(data));
+  },
+  onAuthFailed: (callback) => {
+    ipcRenderer.on('auth:failed', (event, error) => callback(error));
+  }
 });
