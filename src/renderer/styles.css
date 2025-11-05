@@ -348,3 +348,102 @@ body {
   border-radius: 4px;
   font-size: 14px;
 }
+
+/* 头部布局 */
+.header-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.header-right {
+  display: flex;
+  gap: 10px;
+}
+
+.account-info {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 4px 12px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+}
+
+/* 账号管理模态框 */
+.modal-large {
+  width: 800px;
+}
+
+.accounts-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.accounts-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.account-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+}
+
+.account-item:hover {
+  border-color: #1a73e8;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.1);
+}
+
+.account-item.active {
+  border-color: #1a73e8;
+  background-color: #e8f0fe;
+}
+
+.account-info-group {
+  flex: 1;
+}
+
+.account-email {
+  font-weight: 600;
+  color: #202124;
+  margin-bottom: 5px;
+}
+
+.account-status {
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.account-status.authorized {
+  color: #137333;
+}
+
+.account-status.not-authorized {
+  color: #d93025;
+}
+
+.account-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.account-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  background-color: #1a73e8;
+  border-radius: 10px;
+  margin-left: 10px;
+}

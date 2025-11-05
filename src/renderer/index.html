@@ -28,9 +28,15 @@
     <!-- 主界面 -->
     <div id="main-screen" class="screen hidden">
       <div class="header">
-        <h1>Gmail 客户端</h1>
-        <button id="compose-btn" class="btn btn-primary">写邮件</button>
-        <button id="refresh-btn" class="btn">刷新</button>
+        <div class="header-left">
+          <h1>Gmail 客户端</h1>
+          <div id="account-info" class="account-info"></div>
+        </div>
+        <div class="header-right">
+          <button id="accounts-btn" class="btn">账号管理</button>
+          <button id="compose-btn" class="btn btn-primary">写邮件</button>
+          <button id="sync-btn" class="btn">同步邮件</button>
+        </div>
       </div>
 
       <div class="content">
@@ -69,7 +75,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h2>写邮件</h2>
-          <button id="close-modal-btn" class="close-btn">&times;</button>
+          <button class="close-btn" data-close="compose-modal">&times;</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
@@ -86,10 +92,34 @@
           </div>
           <div class="modal-footer">
             <button id="send-btn" class="btn btn-primary">发送</button>
-            <button id="cancel-btn" class="btn">取消</button>
+            <button class="btn" data-close="compose-modal">取消</button>
           </div>
           <div id="compose-error" class="error hidden"></div>
           <div id="compose-success" class="success hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 账号管理模态框 -->
+    <div id="accounts-modal" class="modal hidden">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2>账号管理</h2>
+          <button class="close-btn" data-close="accounts-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="accounts-toolbar">
+            <button id="add-account-btn" class="btn btn-primary">添加授权账号</button>
+            <button id="import-accounts-btn" class="btn">导入账号</button>
+            <button id="export-accounts-btn" class="btn">导出账号</button>
+          </div>
+
+          <div id="accounts-list" class="accounts-list">
+            <!-- 账号列表将动态生成 -->
+          </div>
+
+          <div id="accounts-error" class="error hidden"></div>
+          <div id="accounts-success" class="success hidden"></div>
         </div>
       </div>
     </div>

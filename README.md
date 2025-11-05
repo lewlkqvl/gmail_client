@@ -1,23 +1,37 @@
 # Gmail Electron 客户端
 
-一个使用 Node.js 和 Electron 构建的 Gmail 桌面客户端应用，支持邮件的接收、发送和删除功能。
+一个使用 Node.js 和 Electron 构建的 Gmail 桌面客户端应用，支持邮件的接收、发送和删除功能，具备多账号管理和本地数据存储能力。
 
 ## 功能特性
 
-- ✅ Gmail 账号授权登录
+### 核心功能
+- ✅ Gmail 账号 OAuth 2.0 授权登录
 - ✅ 接收和查看邮件
 - ✅ 发送新邮件
 - ✅ 回复邮件
 - ✅ 删除邮件
 - ✅ 标记邮件为已读
-- ✅ 美观的用户界面
+- ✅ 邮件本地缓存（离线查看）
+
+### 多账号管理
+- ✅ 支持多个 Gmail 账号
+- ✅ 快速切换账号
+- ✅ 账号批量导入/导出
+- ✅ 账号信息加密存储
+
+### 数据存储
+- ✅ SQLite 本地数据库
+- ✅ 邮件本地持久化存储
+- ✅ 账号密码加密存储
+- ✅ 离线访问已同步邮件
 
 ## 技术栈
 
 - **Electron** - 跨平台桌面应用框架
 - **Node.js** - JavaScript 运行时
 - **Google APIs** - Gmail API 集成
-- **electron-store** - 本地数据存储
+- **better-sqlite3** - SQLite 数据库驱动
+- **electron-store** - 配置存储
 
 ## 安装步骤
 
@@ -81,60 +95,169 @@ npm start
 3. 登录你的 Google 账号并授予权限
 4. 复制授权码（浏览器地址栏中的 `code=` 后面的内容）
 5. 将授权码粘贴到应用中并提交
+6. 首次授权后会自动同步最近 50 封邮件
 
-### 查看邮件
+### 邮件操作
 
-- 左侧显示邮件列表（最近 50 封）
+#### 同步邮件
+
+- 点击顶部 "同步邮件" 按钮从 Gmail 服务器获取最新邮件
+- 同步的邮件会保存到本地数据库，可离线查看
+
+#### 查看邮件
+
+- 左侧显示邮件列表
 - 点击任意邮件查看详情
 - 未读邮件会以粗体显示
+- 查看邮件后会自动标记为已读
 
-### 发送邮件
+#### 发送邮件
 
 1. 点击顶部 "写邮件" 按钮
 2. 填写收件人、主题和内容
 3. 点击 "发送"
 
-### 回复邮件
+#### 回复邮件
 
 1. 在邮件详情页面点击 "回复" 按钮
 2. 系统会自动填充收件人和主题
 3. 编写回复内容后发送
 
-### 删除邮件
+#### 删除邮件
 
 1. 在邮件详情页面点击 "删除" 按钮
 2. 确认删除操作
+3. 邮件将从 Gmail 服务器和本地数据库中删除
 
-### 刷新邮件
+### 账号管理
 
-点击顶部 "刷新" 按钮重新加载邮件列表
+#### 查看所有账号
+
+1. 点击顶部 "账号管理" 按钮
+2. 查看所有已添加的账号列表
+3. 当前激活的账号会显示 "当前" 标签
+
+#### 添加新账号
+
+1. 在账号管理界面点击 "添加授权账号"
+2. 浏览器会打开 Google 授权页面
+3. 完成授权并输入授权码
+4. 新账号会自动添加到账号列表
+
+#### 切换账号
+
+1. 在账号管理界面找到要切换的账号
+2. 点击 "切换" 按钮
+3. 系统会自动加载该账号的邮件
+
+#### 删除账号
+
+1. 在账号管理界面找到要删除的账号
+2. 点击 "删除" 按钮
+3. 确认删除操作
+
+### 导入导出账号
+
+#### 导出账号
+
+1. 点击 "账号管理"
+2. 点击 "导出账号" 按钮
+3. 选择保存位置
+4. 账号信息会以 JSON 格式导出（包含邮箱和加密后的密码）
+
+#### 导入账号
+
+1. 点击 "账号管理"
+2. 点击 "导入账号" 按钮
+3. 选择之前导出的 JSON 文件
+4. 系统会自动添加或更新账号信息
+
+**导出的 JSON 格式示例：**
+
+```json
+[
+  {
+    "email": "user@gmail.com",
+    "password": "encrypted_password",
+    "created_at": 1234567890
+  }
+]
+```
 
 ## 项目结构
 
 ```
 gmail_client/
-├── config/                        # 配置文件目录
-│   ├── credentials.json          # Gmail API 凭据（需要自行配置）
-│   └── credentials.example.json  # 凭据示例文件
+├── config/
+│   ├── credentials.json           # Gmail API 凭据（需自行配置）
+│   └── credentials.example.json   # 凭据示例文件
 ├── src/
-│   ├── main.js                   # Electron 主进程
-│   ├── preload.js                # Preload 脚本（IPC 通信）
+│   ├── main.js                     # Electron 主进程
+│   ├── preload.js                  # Preload 脚本（IPC 通信）
 │   ├── services/
-│   │   └── gmailService.js       # Gmail API 服务层
+│   │   ├── databaseService.js      # SQLite 数据库服务
+│   │   └── gmailService.js         # Gmail API 服务层
 │   └── renderer/
-│       ├── index.html            # 主界面 HTML
-│       ├── styles.css            # 样式文件
-│       └── renderer.js           # 渲染进程 JavaScript
-├── package.json                  # 项目配置
-└── README.md                     # 项目文档
+│       ├── index.html              # 主界面 HTML
+│       ├── styles.css              # 样式文件
+│       └── renderer.js             # 渲染进程 JavaScript
+├── package.json                    # 项目配置
+├── .gitignore                      # Git 忽略文件
+└── README.md                       # 项目文档
 ```
+
+## 数据存储
+
+### 数据库架构
+
+应用使用 SQLite 数据库存储数据，位置：`{userData}/gmail_client.db`
+
+#### 账号表 (accounts)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER | 主键 |
+| email | TEXT | 邮箱地址 |
+| password | TEXT | 加密后的密码 |
+| access_token | TEXT | OAuth 访问令牌 |
+| refresh_token | TEXT | OAuth 刷新令牌 |
+| token_expiry | INTEGER | 令牌过期时间 |
+| is_active | INTEGER | 是否为活动账号 |
+| created_at | INTEGER | 创建时间 |
+| updated_at | INTEGER | 更新时间 |
+
+#### 邮件表 (messages)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER | 主键 |
+| account_id | INTEGER | 关联账号 ID |
+| message_id | TEXT | Gmail 邮件 ID |
+| thread_id | TEXT | 邮件线程 ID |
+| from_email | TEXT | 发件人 |
+| to_email | TEXT | 收件人 |
+| subject | TEXT | 主题 |
+| snippet | TEXT | 摘要 |
+| body | TEXT | 邮件正文 |
+| date | TEXT | 日期 |
+| labels | TEXT | 标签（逗号分隔） |
+| is_read | INTEGER | 是否已读 |
+| is_deleted | INTEGER | 是否已删除 |
+| created_at | INTEGER | 创建时间 |
+
+### 数据加密
+
+- 账号密码使用 AES-256-CBC 加密
+- 加密密钥派生自固定的密钥和盐值
+- OAuth 令牌以明文存储在数据库中（仅本地访问）
 
 ## 安全说明
 
-- 应用使用 OAuth 2.0 进行安全认证
-- 不会存储你的 Gmail 密码
-- 授权令牌加密存储在本地
+- 应用使用 OAuth 2.0 进行安全认证，不会存储你的 Gmail 密码
+- 授权令牌和账号信息存储在本地数据库中
+- 账号密码使用 AES-256 加密算法加密
 - 使用 Electron 的上下文隔离和预加载脚本确保安全性
+- 数据库文件存储在操作系统的用户数据目录中
 
 ## 常见问题
 
@@ -146,6 +269,7 @@ gmail_client/
 
 ### 2. 无法接收邮件
 
+- 点击 "同步邮件" 按钮手动同步
 - 检查网络连接
 - 确认授权令牌未过期（过期后需要重新授权）
 - 查看控制台错误信息
@@ -154,6 +278,18 @@ gmail_client/
 
 - 检查收件人邮箱格式是否正确
 - 确认 Gmail API 权限是否包含发送邮件权限
+
+### 4. 账号导入失败
+
+- 确保 JSON 文件格式正确
+- 检查文件编码为 UTF-8
+- 验证邮箱地址格式是否有效
+
+### 5. 数据库错误
+
+- 检查应用是否有权限访问用户数据目录
+- 尝试删除数据库文件并重新启动应用
+- 数据库文件位置：`{userData}/gmail_client.db`
 
 ## 开发模式
 
@@ -170,3 +306,21 @@ MIT License
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request！
+
+## 更新日志
+
+### v2.0.0
+
+- ✨ 新增 SQLite 数据库存储
+- ✨ 新增多账号管理功能
+- ✨ 新增账号批量导入导出
+- ✨ 新增邮件本地缓存
+- ✨ 新增账号密码加密存储
+- 🎨 改进用户界面布局
+- ⚡ 优化邮件加载性能
+
+### v1.0.0
+
+- 🎉 初始版本发布
+- ✨ 基础邮件收发功能
+- ✨ Gmail OAuth 2.0 授权

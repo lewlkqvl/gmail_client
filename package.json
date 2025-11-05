@@ -17,7 +17,8 @@
   "license": "MIT",
   "dependencies": {
     "googleapis": "^128.0.0",
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "better-sqlite3": "^9.2.0"
   },
   "devDependencies": {
     "electron": "^27.0.0"
