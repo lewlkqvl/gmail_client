@@ -266,24 +266,30 @@ function setupIpcHandlers() {
   });
 }
 
-app.whenReady().then(() => {
-  // 初始化数据库服务
-  dbService = new DatabaseService();
+app.whenReady().then(async () => {
+  try {
+    // 初始化数据库服务
+    dbService = new DatabaseService();
+    await dbService.initialize();
 
-  // 初始化 Gmail 服务
-  gmailService = new GmailService(dbService);
+    // 初始化 Gmail 服务
+    gmailService = new GmailService(dbService);
 
-  // 注册 IPC 处理程序
-  setupIpcHandlers();
+    // 注册 IPC 处理程序
+    setupIpcHandlers();
 
-  // 创建窗口
-  createWindow();
+    // 创建窗口
+    createWindow();
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  } catch (error) {
+    console.error('Error initializing application:', error);
+    app.quit();
+  }
 });
 
 app.on('window-all-closed', () => {

@@ -30,7 +30,7 @@
 - **Electron** - 跨平台桌面应用框架
 - **Node.js** - JavaScript 运行时
 - **Google APIs** - Gmail API 集成
-- **better-sqlite3** - SQLite 数据库驱动
+- **sql.js** - SQLite 纯 JavaScript 实现（无需原生模块编译）
 - **electron-store** - 配置存储
 
 ## 安装步骤
@@ -48,7 +48,7 @@ cd gmail_client
 npm install
 ```
 
-**注意**：如果遇到 `NODE_MODULE_VERSION` 错误，请参考 [INSTALL.md](INSTALL.md) 中的解决方法。这是因为 `better-sqlite3` 需要针对 Electron 版本重新编译。
+**注意**：本项目使用 `sql.js`（纯 JavaScript 实现的 SQLite），无需原生模块编译，安装即可使用。
 
 ### 3. 配置 Gmail API
 
@@ -310,6 +310,14 @@ MIT License
 欢迎提交 Issue 和 Pull Request！
 
 ## 更新日志
+
+### v2.1.0
+
+- 🔧 **重要更新**：迁移到 sql.js（纯 JavaScript SQLite 实现）
+- ✅ 移除原生模块依赖，解决编译问题
+- ✅ 跨平台安装体验一致，无需构建工具
+- ✅ 即装即用，大幅简化安装流程
+- 🚀 保持所有功能完整性
 
 ### v2.0.0
 
