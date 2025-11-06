@@ -2,7 +2,10 @@ const { google } = require('googleapis');
 const fs = require('fs').promises;
 const path = require('path');
 
-const SCOPES = ['https://www.googleapis.com/auth/gmail.modify'];
+// Gmail API 权限范围
+// 使用完整访问权限以支持所有邮件操作：读取、发送、删除、修改标签等
+// 注意：修改权限后，已授权的账号需要重新授权才能获得新权限
+const SCOPES = ['https://mail.google.com/'];
 
 class GmailService {
   constructor(dbService, pathHelper = null) {
@@ -422,13 +425,21 @@ class GmailService {
       throw new Error('Not authorized. Please authorize first.');
     }
 
-    await this.gmail.users.messages.delete({
-      userId: 'me',
-      id: messageId,
-    });
+    try {
+      await this.gmail.users.messages.delete({
+        userId: 'me',
+        id: messageId,
+      });
 
-    // 在数据库中标记为已删除
-    this.dbService.deleteMessage(messageId);
+      // 在数据库中标记为已删除
+      this.dbService.deleteMessage(messageId);
+    } catch (error) {
+      // 检测权限不足错误
+      if (error.code === 403 || error.message.includes('Insufficient Permission')) {
+        throw new Error('权限不足：请删除当前账号并重新添加以获得完整权限。操作步骤：账号管理 → 删除账号 → 重新添加账号');
+      }
+      throw error;
+    }
   }
 
   async markAsRead(messageId) {
