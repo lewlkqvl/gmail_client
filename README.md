@@ -25,6 +25,13 @@
 - ✅ 账号密码加密存储
 - ✅ 离线访问已同步邮件
 
+### REST API
+- ✅ 内置 REST API 服务（端口 3100）
+- ✅ 通过邮箱查询最后一封邮件
+- ✅ 获取账号列表
+- ✅ 支持跨域请求（CORS）
+- ✅ 完整的错误处理
+
 ## 技术栈
 
 - **Electron** - 跨平台桌面应用框架
@@ -32,6 +39,8 @@
 - **Google APIs** - Gmail API 集成
 - **sql.js** - SQLite 纯 JavaScript 实现（无需原生模块编译）
 - **electron-store** - 配置存储
+- **Express** - REST API 服务框架
+- **Puppeteer** - 浏览器自动化（用于 OAuth 授权）
 
 ## ⚠️ 重要：首次使用前的准备
 
@@ -194,6 +203,80 @@ npm start
 ]
 ```
 
+### REST API 使用
+
+应用启动时会自动在端口 3100 启动 REST API 服务，供外部程序调用。
+
+#### 快速开始
+
+```bash
+# 健康检查
+curl http://localhost:3100/health
+
+# 获取账号列表
+curl http://localhost:3100/api/accounts
+
+# 获取指定邮箱的最后一封邮件
+curl "http://localhost:3100/api/email/last?email=your_email@gmail.com"
+```
+
+#### API 端点
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/health` | GET | 健康检查，返回服务状态 |
+| `/api/accounts` | GET | 获取所有已添加的账号列表 |
+| `/api/email/last?email=xxx` | GET | 获取指定邮箱的最后一封邮件（含完整内容） |
+
+#### 使用示例
+
+**JavaScript (Fetch)**
+
+```javascript
+// 获取最后一封邮件
+const response = await fetch(
+  'http://localhost:3100/api/email/last?email=your_email@gmail.com'
+);
+const data = await response.json();
+
+if (data.success) {
+  console.log('主题:', data.data.message.subject);
+  console.log('发件人:', data.data.message.from);
+  console.log('正文:', data.data.message.body);
+}
+```
+
+**Python (requests)**
+
+```python
+import requests
+
+# 获取最后一封邮件
+response = requests.get(
+    'http://localhost:3100/api/email/last',
+    params={'email': 'your_email@gmail.com'}
+)
+data = response.json()
+
+if data['success']:
+    print('主题:', data['data']['message']['subject'])
+    print('发件人:', data['data']['message']['from'])
+```
+
+**测试脚本**
+
+项目提供了完整的测试脚本：
+
+```bash
+# 先启动应用
+npm start
+
+# 在另一个终端运行测试
+node test_api.js
+```
+
+📖 **完整 API 文档**：查看 [API.md](API.md) 获取详细的 API 文档和更多示例
+
 ## 项目结构
 
 ```
@@ -206,14 +289,17 @@ gmail_client/
 │   ├── preload.js                  # Preload 脚本（IPC 通信）
 │   ├── services/
 │   │   ├── databaseService.js      # SQLite 数据库服务
-│   │   └── gmailService.js         # Gmail API 服务层
+│   │   ├── gmailService.js         # Gmail API 服务层
+│   │   └── apiService.js           # REST API 服务
 │   └── renderer/
 │       ├── index.html              # 主界面 HTML
 │       ├── styles.css              # 样式文件
 │       └── renderer.js             # 渲染进程 JavaScript
 ├── package.json                    # 项目配置
 ├── .gitignore                      # Git 忽略文件
-└── README.md                       # 项目文档
+├── README.md                       # 项目文档
+├── API.md                          # REST API 文档
+└── test_api.js                     # API 测试脚本
 ```
 
 ## 数据存储
@@ -318,6 +404,19 @@ MIT License
 欢迎提交 Issue 和 Pull Request！
 
 ## 更新日志
+
+### v3.0.0
+
+- 🚀 **重大更新**：新增 REST API 服务
+- ✨ 内置 HTTP 服务器（端口 3100），提供外部 API 访问
+- ✨ 支持通过邮箱查询最后一封邮件（含完整内容）
+- ✨ 提供账号列表查询接口
+- ✨ 完整的 API 文档和测试脚本
+- 🔒 支持 CORS 跨域请求
+- 🎨 优化 UI 设计，提升用户体验
+- 🐛 修复多账号切换和同步问题
+- 🐛 修复授权成功后仍提示验证失败的问题
+- ⚡ 使用 Puppeteer 改进浏览器授权流程
 
 ### v2.1.0
 
