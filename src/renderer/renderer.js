@@ -586,8 +586,30 @@ addAccountBtn.addEventListener('click', async () => {
       const authResult = await window.gmailAPI.setAuthCode(code);
       if (authResult.success) {
         showSuccess(accountsSuccess, `账号 ${authResult.email} 添加成功！`);
+
+        // 刷新账号列表和活动账号信息
         await loadAccounts();
         await loadActiveAccount();
+
+        // 加载新账号的邮件列表
+        await loadMessages();
+
+        // 关闭账号管理模态框
+        setTimeout(() => {
+          closeModal('accounts-modal');
+        }, 1500);
+
+        // 延迟后同步新账号的邮件（静默失败）
+        console.log('新账号添加成功，准备同步邮件...');
+        setTimeout(async () => {
+          try {
+            await syncMessages(false); // 静默失败
+            console.log('✅ 新账号邮件同步成功');
+          } catch (error) {
+            console.error('⚠️ 新账号邮件同步失败:', error);
+            console.log('💡 提示：可以点击"同步"按钮手动同步邮件');
+          }
+        }, 1500);
       } else {
         showError(accountsError, authResult.error);
       }
