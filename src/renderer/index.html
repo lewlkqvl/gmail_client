@@ -95,8 +95,11 @@
             <!-- 邮件链接提取区域 -->
             <div id="mail-links-section" class="mail-links-section hidden">
               <div class="mail-links-header">
-                <h3>🔗 邮件中的链接</h3>
-                <span class="links-count" id="links-count">0</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <h3>🔗 邮件中的链接</h3>
+                  <span class="links-count" id="links-count">0</span>
+                </div>
+                <button id="copy-all-links-btn" class="btn btn-sm" style="display: none;">📋 全部复制</button>
               </div>
               <div class="mail-links-list" id="mail-links-list"></div>
             </div>

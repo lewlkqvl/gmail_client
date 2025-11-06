@@ -511,31 +511,137 @@ function renderMessageDetail(message) {
   extractAndDisplayLinks(body);
 }
 
-// 提取邮件中的所有链接
+// 提取邮件中的所有链接（优化版）
 function extractLinks(html) {
-  const links = new Set(); // 使用Set去重
-  const urlRegex = /(https?:\/\/[^\s<>"]+)/gi;
+  if (!html) return [];
 
-  // 方式1: 从HTML中提取<a>标签的href
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const anchorTags = doc.querySelectorAll('a[href]');
+  const links = new Set();
 
-  anchorTags.forEach(a => {
-    const href = a.getAttribute('href');
-    if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
-      links.add(href);
+  try {
+    // 方式1: 使用DOMParser解析HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // 1.1 提取所有<a>标签的href属性
+    const anchorTags = doc.querySelectorAll('a[href]');
+    anchorTags.forEach(a => {
+      const href = a.getAttribute('href');
+      if (href) {
+        const cleanedUrl = cleanUrl(href);
+        if (cleanedUrl && isValidHttpUrl(cleanedUrl)) {
+          links.add(cleanedUrl);
+        }
+      }
+    });
+
+    // 1.2 提取其他标签中可能包含URL的属性（如img src, iframe src等）
+    const elementsWithUrls = doc.querySelectorAll('[src], [data-url], [data-href]');
+    elementsWithUrls.forEach(el => {
+      ['src', 'data-url', 'data-href'].forEach(attr => {
+        const url = el.getAttribute(attr);
+        if (url) {
+          const cleanedUrl = cleanUrl(url);
+          if (cleanedUrl && isValidHttpUrl(cleanedUrl)) {
+            links.add(cleanedUrl);
+          }
+        }
+      });
+    });
+
+    // 方式2: 从纯文本中提取URL
+    // 获取所有文本内容（包括<a>标签的文本）
+    const bodyText = doc.body ? doc.body.textContent : html;
+
+    // 使用更强大的URL正则表达式
+    // 支持各种URL格式，包括带端口号、查询参数、锚点等
+    const urlRegex = /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)/gi;
+
+    const matches = bodyText.matchAll(urlRegex);
+    for (const match of matches) {
+      const url = match[0];
+      const cleanedUrl = cleanUrl(url);
+      if (cleanedUrl && isValidHttpUrl(cleanedUrl)) {
+        links.add(cleanedUrl);
+      }
     }
-  });
 
-  // 方式2: 从纯文本中提取URL（处理纯文本邮件）
-  const textContent = doc.body ? doc.body.textContent : html;
-  const matches = textContent.matchAll(urlRegex);
-  for (const match of matches) {
-    links.add(match[0]);
+    // 方式3: 直接从原始HTML中提取（防止DOMParser丢失某些格式）
+    const htmlMatches = html.matchAll(urlRegex);
+    for (const match of htmlMatches) {
+      const url = match[0];
+      const cleanedUrl = cleanUrl(url);
+      if (cleanedUrl && isValidHttpUrl(cleanedUrl)) {
+        links.add(cleanedUrl);
+      }
+    }
+
+  } catch (error) {
+    console.error('链接提取失败:', error);
   }
 
-  return Array.from(links);
+  // 转换为数组并排序（按域名分组）
+  const linksArray = Array.from(links);
+
+  // 打印提取结果以便调试
+  if (linksArray.length > 0) {
+    console.log(`✅ 成功提取 ${linksArray.length} 个链接:`, linksArray);
+  } else {
+    console.log('ℹ️ 未在邮件中发现任何链接');
+  }
+
+  return linksArray;
+}
+
+// 清理URL，去除尾部的标点符号等
+function cleanUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+
+  // 去除首尾空格
+  url = url.trim();
+
+  // 去除URL尾部常见的标点符号（但保留URL中合法的标点）
+  // 这些标点通常是句子结尾，不是URL的一部分
+  const trailingPunctuation = /[.,;:!?)\]}>'"]+$/;
+  url = url.replace(trailingPunctuation, '');
+
+  // 处理URL中的HTML实体编码
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = url;
+    url = textarea.value;
+  } catch (e) {
+    // 如果解码失败，使用原始URL
+  }
+
+  // 去除可能的尾部反斜杠（但如果URL就是根路径则保留）
+  if (url.length > 10 && url.endsWith('/')) {
+    url = url.slice(0, -1);
+  }
+
+  return url;
+}
+
+// 验证是否为有效的HTTP/HTTPS URL
+function isValidHttpUrl(string) {
+  if (!string || typeof string !== 'string') return false;
+
+  // 基本检查
+  if (!string.startsWith('http://') && !string.startsWith('https://')) {
+    return false;
+  }
+
+  // 检查URL长度（太短的不太可能是有效URL）
+  if (string.length < 10) {
+    return false;
+  }
+
+  // 尝试使用URL构造函数验证
+  try {
+    const url = new URL(string);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch (e) {
+    return false;
+  }
 }
 
 // 显示提取的链接
@@ -543,9 +649,11 @@ function extractAndDisplayLinks(body) {
   const linksSection = document.getElementById('mail-links-section');
   const linksList = document.getElementById('mail-links-list');
   const linksCount = document.getElementById('links-count');
+  const copyAllBtn = document.getElementById('copy-all-links-btn');
 
   if (!body) {
     linksSection.classList.add('hidden');
+    if (copyAllBtn) copyAllBtn.style.display = 'none';
     return;
   }
 
@@ -553,12 +661,26 @@ function extractAndDisplayLinks(body) {
 
   if (links.length === 0) {
     linksSection.classList.add('hidden');
+    if (copyAllBtn) copyAllBtn.style.display = 'none';
     return;
   }
 
   // 显示链接区域
   linksSection.classList.remove('hidden');
   linksCount.textContent = links.length;
+
+  // 显示"全部复制"按钮
+  if (copyAllBtn) {
+    copyAllBtn.style.display = 'block';
+    // 移除旧的事件监听器（如果有）
+    const newCopyAllBtn = copyAllBtn.cloneNode(true);
+    copyAllBtn.parentNode.replaceChild(newCopyAllBtn, copyAllBtn);
+    // 添加新的事件监听器
+    newCopyAllBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      copyAllLinksToClipboard(links, newCopyAllBtn);
+    });
+  }
 
   // 清空列表
   linksList.innerHTML = '';
@@ -595,6 +717,65 @@ function extractAndDisplayLinks(body) {
 function truncateUrl(url, maxLength) {
   if (url.length <= maxLength) return url;
   return url.substring(0, maxLength - 3) + '...';
+}
+
+// 复制所有链接到剪贴板
+function copyAllLinksToClipboard(links, button) {
+  if (!links || links.length === 0) {
+    alert('没有链接可复制');
+    return;
+  }
+
+  // 将所有链接用换行符连接
+  const allLinksText = links.join('\n');
+
+  // 使用现代Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(allLinksText)
+      .then(() => {
+        const originalText = button.textContent;
+        button.textContent = `✅ 已复制 ${links.length} 个链接`;
+        button.classList.add('copied');
+
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove('copied');
+        }, 2000);
+      })
+      .catch(err => {
+        console.error('复制失败:', err);
+        alert(`复制失败: ${err.message}`);
+      });
+  } else {
+    // 降级方案
+    const textArea = document.createElement('textarea');
+    textArea.value = allLinksText;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        const originalText = button.textContent;
+        button.textContent = `✅ 已复制 ${links.length} 个链接`;
+        button.classList.add('copied');
+
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove('copied');
+        }, 2000);
+      } else {
+        alert('复制失败，请手动复制');
+      }
+    } catch (err) {
+      console.error('复制失败:', err);
+      alert('复制失败，请手动复制');
+    }
+
+    document.body.removeChild(textArea);
+  }
 }
 
 // 复制到剪贴板
