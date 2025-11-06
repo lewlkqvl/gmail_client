@@ -51,10 +51,27 @@ async function initialize() {
   // 监听授权成功事件
   window.gmailAPI.onAuthSuccess(async (data) => {
     console.log('授权成功:', data);
+
     // 切换到主界面
     showMainScreen();
+
+    // 加载账号信息
     await loadActiveAccount();
-    await syncMessages();
+
+    // 给服务一点时间初始化，然后尝试同步
+    console.log('等待服务就绪...');
+    setTimeout(async () => {
+      try {
+        // 首次同步不显示alert，静默失败
+        await syncMessages(false);
+        console.log('✅ 首次同步成功');
+      } catch (error) {
+        console.error('⚠️ 首次同步失败:', error);
+        // 首次同步失败不阻塞用户，只在控制台记录
+        // 用户可以稍后手动点击同步按钮
+        console.log('💡 提示：可以点击"同步"按钮手动同步邮件');
+      }
+    }, 1500); // 延迟1.5秒再同步，给服务更多准备时间
   });
 
   // 监听授权失败事件
@@ -121,17 +138,31 @@ authBtn.addEventListener('click', async () => {
 });
 
 // 同步邮件
-async function syncMessages() {
+async function syncMessages(showAlert = true) {
   loading.classList.remove('hidden');
   mailListContainer.innerHTML = '';
 
-  const result = await window.gmailAPI.syncMessages(50);
-  loading.classList.add('hidden');
+  try {
+    const result = await window.gmailAPI.syncMessages(50);
+    loading.classList.add('hidden');
 
-  if (result.success) {
-    await loadMessages();
-  } else {
-    alert('同步失败: ' + result.error);
+    if (result.success) {
+      await loadMessages();
+      return true;
+    } else {
+      if (showAlert) {
+        alert('同步失败: ' + result.error);
+      } else {
+        throw new Error(result.error);
+      }
+      return false;
+    }
+  } catch (error) {
+    loading.classList.add('hidden');
+    if (showAlert) {
+      alert('同步失败: ' + error.message);
+    }
+    throw error;
   }
 }
 
