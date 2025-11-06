@@ -59,7 +59,19 @@ function isWebMode() {
 }
 
 // 复制文本到剪贴板（多种方法兼容）
-async function copyToClipboard(text, showFeedback = true) {
+async function copyToClipboard(text, options = {}) {
+  // 兼容旧的调用方式：copyToClipboard(text, true/false)
+  if (typeof options === 'boolean') {
+    options = { showFeedback: options };
+  }
+
+  // 默认配置
+  const {
+    showFeedback = true,    // 是否显示全局反馈（Toast或弹窗）
+    onSuccess = null,       // 成功回调函数
+    onError = null          // 失败回调函数
+  } = options;
+
   let success = false;
 
   // 方法1: 优先使用 Electron clipboard API（最可靠）
@@ -136,19 +148,37 @@ async function copyToClipboard(text, showFeedback = true) {
   // 最终判断和反馈
   console.log('[复制] 最终结果 - success:', success);
 
-  if (success === true && showFeedback) {
-    // 显示复制成功的提示
-    console.log('✅ 复制成功，显示成功提示');
-    showCopyToast('✓ 已复制');
+  if (success === true) {
+    // 复制成功
+    console.log('✅ 复制成功');
+
+    // 调用成功回调
+    if (onSuccess && typeof onSuccess === 'function') {
+      onSuccess();
+    }
+
+    // 显示全局反馈
+    if (showFeedback) {
+      showCopyToast('✓ 已复制');
+    }
+
     return true;
-  } else if (success !== true && showFeedback) {
-    // 显示手动复制提示
-    console.error('❌ 所有复制方法都失败了，显示手动复制弹窗');
-    showManualCopyPrompt(text);
+  } else {
+    // 复制失败
+    console.error('❌ 所有复制方法都失败了');
+
+    // 调用失败回调
+    if (onError && typeof onError === 'function') {
+      onError();
+    }
+
+    // 显示全局反馈
+    if (showFeedback) {
+      showManualCopyPrompt(text);
+    }
+
     return false;
   }
-
-  return success === true;
 }
 
 // 显示复制成功提示框
@@ -947,9 +977,27 @@ function extractAndDisplayLinks(body) {
     copyBtn.className = 'btn btn-sm copy-link-btn';
     copyBtn.textContent = '📋 复制';
     copyBtn.dataset.url = link;
-    copyBtn.onclick = (e) => {
+    copyBtn.onclick = async (e) => {
       e.preventDefault();
-      copyToClipboard(link, copyBtn);
+      const originalText = copyBtn.textContent;
+
+      // 使用统一的 copyToClipboard 函数，不显示全局反馈，使用按钮反馈
+      await copyToClipboard(link, {
+        showFeedback: false,  // 不显示全局 Toast
+        onSuccess: () => {
+          // 成功：更新按钮状态
+          copyBtn.textContent = '✅ 已复制';
+          copyBtn.classList.add('copied');
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.classList.remove('copied');
+          }, 2000);
+        },
+        onError: () => {
+          // 失败：显示错误并显示手动复制弹窗
+          alert('复制失败，请手动复制');
+        }
+      });
     };
 
     linkItem.appendChild(linkText);
@@ -965,7 +1013,7 @@ function truncateUrl(url, maxLength) {
 }
 
 // 复制所有链接到剪贴板
-function copyAllLinksToClipboard(links, button) {
+async function copyAllLinksToClipboard(links, button) {
   if (!links || links.length === 0) {
     alert('没有链接可复制');
     return;
@@ -973,108 +1021,25 @@ function copyAllLinksToClipboard(links, button) {
 
   // 将所有链接用换行符连接
   const allLinksText = links.join('\n');
-
-  // 使用现代Clipboard API
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(allLinksText)
-      .then(() => {
-        const originalText = button.textContent;
-        button.textContent = `✅ 已复制 ${links.length} 个链接`;
-        button.classList.add('copied');
-
-        setTimeout(() => {
-          button.textContent = originalText;
-          button.classList.remove('copied');
-        }, 2000);
-      })
-      .catch(err => {
-        console.error('复制失败:', err);
-        alert(`复制失败: ${err.message}`);
-      });
-  } else {
-    // 降级方案
-    const textArea = document.createElement('textarea');
-    textArea.value = allLinksText;
-    textArea.style.position = 'fixed';
-    textArea.style.left = '-9999px';
-    document.body.appendChild(textArea);
-    textArea.select();
-
-    try {
-      const successful = document.execCommand('copy');
-      if (successful) {
-        const originalText = button.textContent;
-        button.textContent = `✅ 已复制 ${links.length} 个链接`;
-        button.classList.add('copied');
-
-        setTimeout(() => {
-          button.textContent = originalText;
-          button.classList.remove('copied');
-        }, 2000);
-      } else {
-        alert('复制失败，请手动复制');
-      }
-    } catch (err) {
-      console.error('复制失败:', err);
-      alert('复制失败，请手动复制');
-    }
-
-    document.body.removeChild(textArea);
-  }
-}
-
-// 复制到剪贴板
-function copyToClipboard(text, button) {
-  // 使用现代Clipboard API
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        showCopySuccess(button);
-      })
-      .catch(err => {
-        console.error('复制失败:', err);
-        fallbackCopyToClipboard(text, button);
-      });
-  } else {
-    // 降级方案
-    fallbackCopyToClipboard(text, button);
-  }
-}
-
-// 降级复制方案（兼容旧浏览器）
-function fallbackCopyToClipboard(text, button) {
-  const textArea = document.createElement('textarea');
-  textArea.value = text;
-  textArea.style.position = 'fixed';
-  textArea.style.left = '-9999px';
-  document.body.appendChild(textArea);
-  textArea.select();
-
-  try {
-    const successful = document.execCommand('copy');
-    if (successful) {
-      showCopySuccess(button);
-    } else {
-      alert('复制失败，请手动复制');
-    }
-  } catch (err) {
-    console.error('复制失败:', err);
-    alert('复制失败，请手动复制');
-  }
-
-  document.body.removeChild(textArea);
-}
-
-// 显示复制成功提示
-function showCopySuccess(button) {
   const originalText = button.textContent;
-  button.textContent = '✅ 已复制';
-  button.classList.add('copied');
 
-  setTimeout(() => {
-    button.textContent = originalText;
-    button.classList.remove('copied');
-  }, 2000);
+  // 使用统一的 copyToClipboard 函数，不显示全局反馈，使用按钮反馈
+  await copyToClipboard(allLinksText, {
+    showFeedback: false,  // 不显示全局 Toast
+    onSuccess: () => {
+      // 成功：更新按钮状态
+      button.textContent = `✅ 已复制 ${links.length} 个链接`;
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.classList.remove('copied');
+      }, 2000);
+    },
+    onError: () => {
+      // 失败：显示错误信息
+      alert('复制失败，请手动复制');
+    }
+  });
 }
 
 // 删除邮件
