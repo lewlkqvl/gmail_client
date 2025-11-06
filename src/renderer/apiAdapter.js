@@ -271,7 +271,7 @@ if (!apiAdapter.isElectron) {
       delete: (accountId) => apiAdapter.callApi('deleteAccount', accountId),
       deleteAll: () => apiAdapter.callApi('deleteAllAccounts'),
       export: () => apiAdapter.callApi('exportAccounts'),
-      import: () => apiAdapter.callApi('importAccounts')
+      import: (accounts) => apiAdapter.callApi('importAccounts', accounts)
     },
 
     openExternal: (url) => apiAdapter.openExternal(url),
