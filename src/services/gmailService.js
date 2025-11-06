@@ -327,8 +327,14 @@ class GmailService {
   }
 
   async listMessages(maxResults = 50) {
+    // 如果当前没有账号ID，尝试从数据库加载活动账号
     if (!this.currentAccountId) {
-      throw new Error('No active account');
+      const activeAccount = this.dbService.getActiveAccount();
+      if (activeAccount && activeAccount.id) {
+        this.currentAccountId = activeAccount.id;
+      } else {
+        throw new Error('No active account');
+      }
     }
 
     // 从数据库读取邮件
