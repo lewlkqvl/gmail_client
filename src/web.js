@@ -278,6 +278,21 @@ class WebServer {
       }
     });
 
+    // 删除所有账号
+    this.app.delete('/api/account/deleteAll', (req, res) => {
+      try {
+        this.dbService.deleteAllAccounts();
+        // 清空 Gmail 服务状态
+        if (this.gmailService) {
+          this.gmailService.currentAccountId = null;
+          this.gmailService.gmail = null;
+        }
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     // 获取邮件统计
     this.app.get('/api/gmail/getStats', (req, res) => {
       try {

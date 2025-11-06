@@ -297,6 +297,14 @@ class DatabaseService {
     this.save();
   }
 
+  // 删除所有账号
+  deleteAllAccounts() {
+    this.db.run('DELETE FROM accounts');
+    // 同时删除所有关联的邮件
+    this.db.run('DELETE FROM messages');
+    this.save();
+  }
+
   // ==================== 邮件管理 ====================
 
   // 保存邮件

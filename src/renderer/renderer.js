@@ -37,6 +37,7 @@ const accountsModal = document.getElementById('accounts-modal');
 const addAccountBtn = document.getElementById('add-account-btn');
 const importAccountsBtn = document.getElementById('import-accounts-btn');
 const exportAccountsBtn = document.getElementById('export-accounts-btn');
+const deleteAllAccountsBtn = document.getElementById('delete-all-accounts-btn');
 const accountsList = document.getElementById('accounts-list');
 const accountsError = document.getElementById('accounts-error');
 const accountsSuccess = document.getElementById('accounts-success');
@@ -902,6 +903,51 @@ exportAccountsBtn.addEventListener('click', async () => {
     showSuccess(accountsSuccess, `成功导出 ${result.count} 个账号到 ${result.filePath}`);
   } else if (result.error !== 'User cancelled') {
     showError(accountsError, result.error);
+  }
+});
+
+// 删除所有账号
+deleteAllAccountsBtn.addEventListener('click', async () => {
+  const accountsCount = currentAccounts.length;
+
+  if (accountsCount === 0) {
+    alert('当前没有账号');
+    return;
+  }
+
+  const confirmMessage = `⚠️ 警告：此操作将删除所有 ${accountsCount} 个账号及其关联的邮件数据！\n\n此操作不可撤销，确定要继续吗？`;
+
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  // 二次确认
+  const doubleConfirm = confirm('请再次确认：真的要删除所有账号吗？');
+  if (!doubleConfirm) {
+    return;
+  }
+
+  try {
+    const result = await window.gmailAPI.account.deleteAll();
+
+    if (result.success) {
+      showSuccess(accountsSuccess, `成功删除所有 ${accountsCount} 个账号！`);
+
+      // 刷新所有相关界面
+      await loadAccounts();
+      await loadSidebarAccounts();
+
+      // 切换回授权界面
+      setTimeout(() => {
+        closeModal('accounts-modal');
+        showAuthScreen();
+      }, 2000);
+    } else {
+      showError(accountsError, '删除失败: ' + result.error);
+    }
+  } catch (error) {
+    showError(accountsError, '删除失败: ' + error.message);
+    console.error('删除所有账号时出错:', error);
   }
 });
 

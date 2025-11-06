@@ -399,6 +399,21 @@ function setupIpcHandlers() {
     }
   });
 
+  // 删除所有账号
+  ipcMain.handle('account:deleteAll', async () => {
+    try {
+      dbService.deleteAllAccounts();
+      // 清空 Gmail 服务状态
+      if (gmailService) {
+        gmailService.currentAccountId = null;
+        gmailService.gmail = null;
+      }
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
   // ==================== 导入导出 IPC 处理程序 ====================
 
   // 导出账号

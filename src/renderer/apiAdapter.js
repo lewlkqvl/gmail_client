@@ -148,6 +148,7 @@ class ApiAdapter {
       'getActiveAccount': { method: 'GET', url: '/api/account/getActive' },
       'switchAccount': { method: 'POST', url: '/api/account/switch', body: (args) => ({ accountId: args[0] }) },
       'deleteAccount': { method: 'DELETE', url: `/api/account/delete/${args[0]}` },
+      'deleteAllAccounts': { method: 'DELETE', url: '/api/account/deleteAll' },
     };
 
     const apiConfig = methodMap[method];
@@ -259,10 +260,18 @@ if (!apiAdapter.isElectron) {
     deleteMessage: (messageId) => apiAdapter.callApi('deleteMessage', messageId),
     markAsRead: (messageId) => apiAdapter.callApi('markAsRead', messageId),
     getStats: () => apiAdapter.callApi('getStats'),
-    getAllAccounts: () => apiAdapter.callApi('getAllAccounts'),
-    getActiveAccount: () => apiAdapter.callApi('getActiveAccount'),
-    switchAccount: (accountId) => apiAdapter.callApi('switchAccount', accountId),
-    deleteAccount: (accountId) => apiAdapter.callApi('deleteAccount', accountId),
+
+    // 账号管理（与Electron模式保持一致的结构）
+    account: {
+      getAll: () => apiAdapter.callApi('getAllAccounts'),
+      getActive: () => apiAdapter.callApi('getActiveAccount'),
+      switch: (accountId) => apiAdapter.callApi('switchAccount', accountId),
+      delete: (accountId) => apiAdapter.callApi('deleteAccount', accountId),
+      deleteAll: () => apiAdapter.callApi('deleteAllAccounts'),
+      export: () => apiAdapter.callApi('exportAccounts'),
+      import: () => apiAdapter.callApi('importAccounts')
+    },
+
     openExternal: (url) => apiAdapter.openExternal(url),
     onAuthSuccess: (callback) => apiAdapter.onAuthSuccess(callback),
     onAuthFailed: (callback) => apiAdapter.onAuthFailed(callback),

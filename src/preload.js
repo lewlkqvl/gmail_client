@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('gmailAPI', {
     switch: (accountId) => ipcRenderer.invoke('account:switch', accountId),
     add: (data) => ipcRenderer.invoke('account:add', data),
     delete: (accountId) => ipcRenderer.invoke('account:delete', accountId),
+    deleteAll: () => ipcRenderer.invoke('account:deleteAll'),
     export: () => ipcRenderer.invoke('account:export'),
     import: () => ipcRenderer.invoke('account:import')
   },
