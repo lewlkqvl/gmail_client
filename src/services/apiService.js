@@ -60,89 +60,37 @@ class ApiService {
 
         // 使用无状态方法直接查询指定账号，不依赖活动账号
         // 这样支持并发查询多个不同邮箱，避免账号切换的竞态条件
+        // 强制从 Gmail 服务器同步最新邮件，不从数据库读取
 
-        // 获取最后一封邮件（从数据库）
-        let lastMessage = this.dbService.getMessages(account.id, 1)[0];
-        let shouldSyncFromAPI = false;
+        console.log(`[API] Syncing latest message from Gmail API for ${email}...`);
 
-        console.log(`[API] Checking database for messages of account ${email}...`);
+        // 强制从 Gmail API 同步最新的1封邮件
+        const syncedMessages = await this.gmailService.syncMessagesForAccount(account, 1);
+        console.log(`[API] Synced ${syncedMessages ? syncedMessages.length : 0} messages for ${email}`);
 
-        // 如果数据库中没有邮件，标记需要从 API 同步
-        if (!lastMessage) {
-          console.log(`[API] No messages in database for ${email}, will sync from Gmail API...`);
-          shouldSyncFromAPI = true;
-        } else {
-          console.log(`[API] Found message in database: ${lastMessage.id || lastMessage.message_id}`);
-        }
-
-        // 如果数据库中有邮件，尝试获取完整内容
-        let fullMessage = null;
-        if (!shouldSyncFromAPI) {
-          try {
-            // 确保lastMessage有id属性
-            if (!lastMessage.id && !lastMessage.message_id) {
-              console.log(`Message data missing ID for ${email}, will sync from Gmail API...`);
-              shouldSyncFromAPI = true;
-            } else {
-              // 获取完整邮件内容（包括body）- 直接使用账号对象
-              const messageId = lastMessage.id || lastMessage.message_id;
-              fullMessage = await this.gmailService.getMessageForAccount(messageId, account);
-            }
-          } catch (error) {
-            // 如果获取失败（例如邮件已被删除），从 API 重新同步
-            // 检查错误是否为 404 或包含 "not found" 消息
-            const isNotFoundError =
-              (error.code === 404) ||
-              (error.status === 404) ||
-              (error.message && (
-                error.message.toLowerCase().includes('not found') ||
-                error.message.toLowerCase().includes('requested entity')
-              ));
-
-            if (isNotFoundError) {
-              console.log(`Message not found in Gmail for ${email} (${error.message}), will sync from Gmail API...`);
-              shouldSyncFromAPI = true;
-            } else {
-              throw error; // 其他错误继续抛出
-            }
-          }
-        }
-
-        // 如果需要从 API 同步
-        if (shouldSyncFromAPI) {
-          console.log(`[API] Syncing messages from Gmail API for ${email}...`);
-          const syncedMessages = await this.gmailService.syncMessagesForAccount(account, 1);
-          console.log(`[API] Synced ${syncedMessages ? syncedMessages.length : 0} messages for ${email}`);
-
-          if (!syncedMessages || syncedMessages.length === 0) {
-            return res.status(404).json({
-              success: false,
-              error: `No messages found for email: ${email}`
-            });
-          }
-
-          lastMessage = syncedMessages[0];
-
-          // 确保同步的消息有id属性
-          if (!lastMessage.id && !lastMessage.message_id) {
-            return res.status(500).json({
-              success: false,
-              error: 'Invalid message data: missing message ID'
-            });
-          }
-
-          // 获取完整邮件内容
-          const messageId = lastMessage.id || lastMessage.message_id;
-          fullMessage = await this.gmailService.getMessageForAccount(messageId, account);
-        }
-
-        // 确保获取到了完整邮件
-        if (!fullMessage) {
-          return res.status(500).json({
+        if (!syncedMessages || syncedMessages.length === 0) {
+          return res.status(404).json({
             success: false,
-            error: 'Failed to retrieve message content'
+            error: `No messages found for email: ${email}`
           });
         }
+
+        const lastMessage = syncedMessages[0];
+
+        // 确保同步的消息有id属性
+        if (!lastMessage.id && !lastMessage.message_id) {
+          return res.status(500).json({
+            success: false,
+            error: 'Invalid message data: missing message ID'
+          });
+        }
+
+        // 获取完整邮件内容（包括body）
+        const messageId = lastMessage.id || lastMessage.message_id;
+        console.log(`[API] Fetching full message content for message ID: ${messageId}`);
+        const fullMessage = await this.gmailService.getMessageForAccount(messageId, account);
+
+        console.log(`[API] Successfully retrieved latest message for ${email}`);
 
         res.json({
           success: true,

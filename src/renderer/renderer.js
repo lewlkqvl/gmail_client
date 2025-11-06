@@ -58,6 +58,38 @@ function isWebMode() {
   return typeof window.process === 'undefined';
 }
 
+// 复制文本到剪贴板
+async function copyToClipboard(text, showFeedback = true) {
+  try {
+    await navigator.clipboard.writeText(text);
+    if (showFeedback) {
+      // 显示复制成功的提示
+      const toast = document.createElement('div');
+      toast.className = 'copy-toast';
+      toast.textContent = '✓ 已复制';
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('show');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+          document.body.removeChild(toast);
+        }, 300);
+      }, 1500);
+    }
+    return true;
+  } catch (error) {
+    console.error('复制失败:', error);
+    if (showFeedback) {
+      alert('复制失败: ' + error.message);
+    }
+    return false;
+  }
+}
+
 // Web模式导入账号辅助函数
 async function importAccountsInWebMode() {
   return new Promise((resolve) => {
@@ -253,20 +285,34 @@ function renderSidebarAccounts() {
     const statusText = account.has_token ? '✓ 已授权' : '✗ 未授权';
 
     accountItem.innerHTML = `
-      <div class="sidebar-account-email" title="${escapeHtml(account.email)}">
-        ${escapeHtml(account.email)}
+      <div class="sidebar-account-main">
+        <div class="sidebar-account-email" title="${escapeHtml(account.email)}">
+          ${escapeHtml(account.email)}
+        </div>
+        <div class="sidebar-account-status ${statusClass}">${statusText}</div>
       </div>
-      <div class="sidebar-account-status ${statusClass}">${statusText}</div>
+      <button class="sidebar-account-copy-btn" title="复制邮箱地址" data-email="${escapeHtml(account.email)}">
+        📋
+      </button>
     `;
 
     // 只有已授权的账号才能点击切换
     if (account.has_token) {
-      accountItem.onclick = () => {
+      const mainArea = accountItem.querySelector('.sidebar-account-main');
+      mainArea.onclick = () => {
         if (!account.is_active) {
           switchToAccount(account.id, account.email);
         }
       };
+      mainArea.style.cursor = 'pointer';
     }
+
+    // 绑定复制按钮事件
+    const copyBtn = accountItem.querySelector('.sidebar-account-copy-btn');
+    copyBtn.onclick = (e) => {
+      e.stopPropagation();
+      copyToClipboard(account.email);
+    };
 
     accountsSidebarList.appendChild(accountItem);
   });
@@ -1016,10 +1062,19 @@ function renderAccounts(accounts) {
         <div class="account-status ${statusClass}">${statusText}</div>
       </div>
       <div class="account-actions">
+        <button class="btn btn-sm btn-copy" data-email="${escapeHtml(account.email)}" title="复制邮箱地址">📋 复制</button>
         ${!account.is_active && account.has_token ? `<button class="btn btn-sm" onclick="switchAccount(${account.id})">切换</button>` : ''}
         <button class="btn btn-sm btn-danger" onclick="deleteAccount(${account.id})">删除</button>
       </div>
     `;
+
+    // 绑定复制按钮事件
+    const copyBtn = accountItem.querySelector('.btn-copy');
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        copyToClipboard(account.email);
+      };
+    }
 
     accountsList.appendChild(accountItem);
   });
