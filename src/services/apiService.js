@@ -52,72 +52,55 @@ class ApiService {
           });
         }
 
-        // 备份当前活动账号
-        const originalActiveAccount = this.dbService.getActiveAccount();
-        const needRestore = !originalActiveAccount || originalActiveAccount.id !== account.id;
+        // 使用无状态方法直接查询指定账号，不依赖活动账号
+        // 这样支持并发查询多个不同邮箱，避免账号切换的竞态条件
 
-        try {
-          // 临时切换到目标账号（如果需要）
-          if (needRestore) {
-            await this.gmailService.switchAccount(account.id);
-          }
+        // 获取最后一封邮件（从数据库）
+        let lastMessage = this.dbService.getMessages(account.id, 1)[0];
 
-          // 获取最后一封邮件（从数据库）
-          let lastMessage = this.dbService.getMessages(account.id, 1)[0];
-
-          // 如果数据库中没有邮件，从Gmail API同步
-          if (!lastMessage) {
-            // 同步1封邮件，传递accountId进行验证
-            await this.gmailService.syncMessages(1, account.id);
-            lastMessage = this.dbService.getMessages(account.id, 1)[0];
-          }
-
-          if (!lastMessage) {
-            return res.status(404).json({
-              success: false,
-              error: `No messages found for email: ${email}`
-            });
-          }
-
-          // 确保lastMessage有id属性
-          if (!lastMessage.id && !lastMessage.message_id) {
-            return res.status(500).json({
-              success: false,
-              error: 'Invalid message data: missing message ID'
-            });
-          }
-
-          // 获取完整邮件内容（包括body）
-          const messageId = lastMessage.id || lastMessage.message_id;
-          const fullMessage = await this.gmailService.getMessage(messageId);
-
-          res.json({
-            success: true,
-            data: {
-              email: email,
-              message: {
-                id: fullMessage.id,
-                threadId: fullMessage.threadId,
-                from: fullMessage.from,
-                to: fullMessage.to,
-                subject: fullMessage.subject,
-                date: fullMessage.date,
-                snippet: fullMessage.snippet,
-                body: fullMessage.body,
-                labelIds: fullMessage.labelIds
-              }
-            }
-          });
-        } finally {
-          // 恢复原来的账号（如果需要）
-          if (needRestore && originalActiveAccount && originalActiveAccount.id) {
-            try {
-              await this.gmailService.switchAccount(originalActiveAccount.id);
-            } catch (error) {
-              console.error('Error restoring account:', error);
-            }
-          }
+        // 如果数据库中没有邮件，直接使用账号对象同步
+        if (!lastMessage) {
+          console.log(`No messages in database for ${email}, syncing from Gmail API...`);
+          const syncedMessages = await this.gmailService.syncMessagesForAccount(account, 1);
+          lastMessage = syncedMessages.length > 0 ? syncedMessages[0] : null;
         }
+
+        if (!lastMessage) {
+          return res.status(404).json({
+            success: false,
+            error: `No messages found for email: ${email}`
+          });
+        }
+
+        // 确保lastMessage有id属性
+        if (!lastMessage.id && !lastMessage.message_id) {
+          return res.status(500).json({
+            success: false,
+            error: 'Invalid message data: missing message ID'
+          });
+        }
+
+        // 获取完整邮件内容（包括body）- 直接使用账号对象
+        const messageId = lastMessage.id || lastMessage.message_id;
+        const fullMessage = await this.gmailService.getMessageForAccount(messageId, account);
+
+        res.json({
+          success: true,
+          data: {
+            email: email,
+            message: {
+              id: fullMessage.id,
+              threadId: fullMessage.threadId,
+              from: fullMessage.from,
+              to: fullMessage.to,
+              subject: fullMessage.subject,
+              date: fullMessage.date,
+              snippet: fullMessage.snippet,
+              body: fullMessage.body,
+              labelIds: fullMessage.labelIds
+            }
+          }
+        });
       } catch (error) {
         console.error('API Error:', error);
         res.status(500).json({

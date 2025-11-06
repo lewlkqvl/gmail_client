@@ -351,6 +351,132 @@ class GmailService {
     return message;
   }
 
+  /**
+   * 直接使用指定账号同步邮件（无状态方法，用于REST API）
+   * @param {Object} account - 账号对象，必须包含 id, email, access_token, refresh_token
+   * @param {number} maxResults - 要同步的邮件数量
+   * @returns {Promise<Array>} - 同步的邮件列表
+   */
+  async syncMessagesForAccount(account, maxResults = 50) {
+    if (!account || !account.access_token) {
+      throw new Error('Account not authorized');
+    }
+
+    // 为此账号创建独立的 Gmail 实例
+    const { gmail, accountId } = this.createGmailInstance(account);
+
+    const response = await gmail.users.messages.list({
+      userId: 'me',
+      maxResults: maxResults,
+    });
+
+    if (!response.data.messages || response.data.messages.length === 0) {
+      console.log('No messages found for account:', account.email);
+      return [];
+    }
+
+    // 获取每封邮件的详细信息
+    const messages = await Promise.all(
+      response.data.messages.map(async (msg) => {
+        const messageData = await gmail.users.messages.get({
+          userId: 'me',
+          id: msg.id,
+          format: 'metadata',
+          metadataHeaders: ['From', 'To', 'Subject', 'Date']
+        });
+
+        const headers = messageData.data.payload.headers;
+        const getHeader = (name) => {
+          const header = headers.find(h => h.name === name);
+          return header ? header.value : '';
+        };
+
+        return {
+          id: messageData.data.id,
+          threadId: messageData.data.threadId,
+          from: getHeader('From'),
+          to: getHeader('To'),
+          subject: getHeader('Subject'),
+          date: getHeader('Date'),
+          snippet: messageData.data.snippet,
+          labelIds: messageData.data.labelIds || []
+        };
+      })
+    );
+
+    // 保存到数据库
+    messages.forEach(message => {
+      this.dbService.saveMessage(accountId, message);
+    });
+
+    console.log(`Synced ${messages.length} messages for account:`, account.email);
+    return messages;
+  }
+
+  /**
+   * 直接使用指定账号获取完整邮件内容（无状态方法，用于REST API）
+   * @param {string} messageId - 邮件ID
+   * @param {Object} account - 账号对象，必须包含 id, email, access_token, refresh_token
+   * @returns {Promise<Object>} - 完整的邮件对象
+   */
+  async getMessageForAccount(messageId, account) {
+    if (!account || !account.access_token) {
+      throw new Error('Account not authorized');
+    }
+
+    // 先从数据库读取
+    let message = this.dbService.getMessage(messageId);
+
+    // 如果数据库中没有或缺少 body，从 API 获取
+    if (!message || !message.body) {
+      const { gmail, accountId } = this.createGmailInstance(account);
+
+      const response = await gmail.users.messages.get({
+        userId: 'me',
+        id: messageId,
+        format: 'full'
+      });
+
+      const apiMessage = response.data;
+      const headers = apiMessage.payload.headers;
+
+      const getHeader = (name) => {
+        const header = headers.find(h => h.name === name);
+        return header ? header.value : '';
+      };
+
+      // 解析邮件正文
+      let body = '';
+      if (apiMessage.payload.body.data) {
+        body = Buffer.from(apiMessage.payload.body.data, 'base64').toString('utf-8');
+      } else if (apiMessage.payload.parts) {
+        const textPart = apiMessage.payload.parts.find(part =>
+          part.mimeType === 'text/plain' || part.mimeType === 'text/html'
+        );
+        if (textPart && textPart.body.data) {
+          body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+        }
+      }
+
+      message = {
+        id: apiMessage.id,
+        threadId: apiMessage.threadId,
+        from: getHeader('From'),
+        to: getHeader('To'),
+        subject: getHeader('Subject'),
+        date: getHeader('Date'),
+        body: body,
+        snippet: apiMessage.snippet,
+        labelIds: apiMessage.labelIds || []
+      };
+
+      // 保存到数据库
+      this.dbService.saveMessage(accountId, message);
+    }
+
+    return message;
+  }
+
   async sendMessage({ to, subject, message }, expectedAccountId = null) {
     // 获取活动账号并创建独立 Gmail 实例
     const activeAccount = this.dbService.getActiveAccount();
