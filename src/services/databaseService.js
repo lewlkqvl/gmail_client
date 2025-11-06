@@ -428,6 +428,7 @@ class DatabaseService {
   // 导入账号
   importAccounts(accounts) {
     const results = [];
+    let firstAddedAccountId = null;
 
     for (const account of accounts) {
       try {
@@ -443,6 +444,11 @@ class DatabaseService {
             token_expiry: account.token_expiry
           });
           results.push({ email: account.email, status: 'updated' });
+
+          // 记录第一个更新的账号ID（如果有token）
+          if (!firstAddedAccountId && account.access_token) {
+            firstAddedAccountId = existing.id;
+          }
         } else {
           // 添加新账号（包括token）
           const tokens = account.access_token ? {
@@ -451,12 +457,24 @@ class DatabaseService {
             expiry_date: account.token_expiry
           } : null;
 
-          this.addAccount(account.email, account.password, tokens);
+          const newAccountId = this.addAccount(account.email, account.password, tokens);
           results.push({ email: account.email, status: 'added' });
+
+          // 记录第一个添加的账号ID（如果有token）
+          if (!firstAddedAccountId && tokens) {
+            firstAddedAccountId = newAccountId;
+          }
         }
       } catch (error) {
         results.push({ email: account.email, status: 'error', error: error.message });
       }
+    }
+
+    // 如果当前没有活动账号，自动设置第一个导入的账号为活动账号
+    const currentActiveAccount = this.getActiveAccount();
+    if (!currentActiveAccount && firstAddedAccountId) {
+      this.setActiveAccount(firstAddedAccountId);
+      console.log('Auto-set first imported account as active:', firstAddedAccountId);
     }
 
     return results;
