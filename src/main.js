@@ -7,10 +7,12 @@ const url = require('url');
 const puppeteer = require('puppeteer-core');
 const GmailService = require('./services/gmailService');
 const DatabaseService = require('./services/databaseService');
+const ApiService = require('./services/apiService');
 
 let mainWindow;
 let gmailService;
 let dbService;
+let apiService;
 let authServer = null;
 let authBrowser = null; // puppeteer 浏览器实例
 
@@ -598,6 +600,11 @@ app.whenReady().then(async () => {
     await gmailService.initialize();
     console.log('Gmail service initialized');
 
+    // 初始化并启动 REST API 服务
+    apiService = new ApiService(gmailService, dbService);
+    await apiService.start();
+    console.log('REST API service started');
+
     // 注册 IPC 处理程序
     setupIpcHandlers();
     console.log('IPC handlers registered');
@@ -624,10 +631,17 @@ app.whenReady().then(async () => {
   }
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
+  // 关闭 REST API 服务器
+  if (apiService) {
+    await apiService.stop();
+  }
+
+  // 关闭数据库
   if (dbService) {
     dbService.close();
   }
+
   if (process.platform !== 'darwin') {
     app.quit();
   }
