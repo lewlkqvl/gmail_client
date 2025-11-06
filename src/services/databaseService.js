@@ -1,15 +1,15 @@
 const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
-const { app } = require('electron');
 const crypto = require('crypto');
 
 class DatabaseService {
-  constructor() {
+  constructor(pathHelper = null) {
     this.db = null;
     this.dbPath = null;
     this.SQL = null;
     this.initialized = false;
+    this.pathHelper = pathHelper;
   }
 
   // 初始化数据库
@@ -19,8 +19,27 @@ class DatabaseService {
       this.SQL = await initSqlJs();
 
       // 设置数据库路径
-      const userDataPath = app.getPath('userData');
-      this.dbPath = path.join(userDataPath, 'gmail_client.db');
+      if (this.pathHelper) {
+        // 使用PathHelper（web模式或已配置的electron模式）
+        this.dbPath = this.pathHelper.getDatabasePath();
+      } else {
+        // 回退到electron模式（为了向后兼容）
+        try {
+          const { app } = require('electron');
+          const userDataPath = app.getPath('userData');
+          this.dbPath = path.join(userDataPath, 'gmail_client.db');
+        } catch (error) {
+          // 如果不在electron环境中，使用默认路径
+          console.warn('Not in Electron environment, using default path');
+          this.dbPath = path.join(process.cwd(), 'data', 'gmail_client.db');
+
+          // 确保data目录存在
+          const dataDir = path.dirname(this.dbPath);
+          if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+          }
+        }
+      }
 
       // 尝试加载现有数据库
       if (fs.existsSync(this.dbPath)) {

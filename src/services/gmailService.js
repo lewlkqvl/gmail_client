@@ -3,11 +3,11 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const SCOPES = ['https://www.googleapis.com/auth/gmail.modify'];
-const CREDENTIALS_PATH = path.join(__dirname, '../../config/credentials.json');
 
 class GmailService {
-  constructor(dbService) {
+  constructor(dbService, pathHelper = null) {
     this.dbService = dbService;
+    this.pathHelper = pathHelper;
     this.oauth2Client = null;
     this.gmail = null;
     this.currentAccountId = null;
@@ -48,7 +48,11 @@ class GmailService {
 
   async loadCredentials() {
     try {
-      const content = await fs.readFile(CREDENTIALS_PATH);
+      const credentialsPath = this.pathHelper
+        ? this.pathHelper.getCredentialsPath()
+        : path.join(__dirname, '../../config/credentials.json');
+
+      const content = await fs.readFile(credentialsPath);
       return JSON.parse(content);
     } catch (error) {
       throw new Error('请先配置 credentials.json 文件。参考 credentials.example.json');

@@ -5,11 +5,13 @@ const fsSync = require('fs');
 const http = require('http');
 const url = require('url');
 const puppeteer = require('puppeteer-core');
+const PathHelper = require('./utils/pathHelper');
 const GmailService = require('./services/gmailService');
 const DatabaseService = require('./services/databaseService');
 const ApiService = require('./services/apiService');
 
 let mainWindow;
+let pathHelper;
 let gmailService;
 let dbService;
 let apiService;
@@ -590,13 +592,20 @@ async function openInPrivateMode(targetUrl) {
 
 app.whenReady().then(async () => {
   try {
+    // 初始化路径助手（Electron模式）
+    pathHelper = new PathHelper('electron');
+    // 设置Electron userData路径到环境变量，供PathHelper使用
+    process.env.ELECTRON_USER_DATA = app.getPath('userData');
+    console.log('Path helper initialized (Electron mode)');
+    console.log('User data path:', app.getPath('userData'));
+
     // 初始化数据库服务
-    dbService = new DatabaseService();
+    dbService = new DatabaseService(pathHelper);
     await dbService.initialize();
     console.log('Database service initialized');
 
     // 初始化 Gmail 服务
-    gmailService = new GmailService(dbService);
+    gmailService = new GmailService(dbService, pathHelper);
     await gmailService.initialize();
     console.log('Gmail service initialized');
 
