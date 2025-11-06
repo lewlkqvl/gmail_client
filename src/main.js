@@ -268,9 +268,9 @@ function setupIpcHandlers() {
   });
 
   // 同步邮件（从 Gmail 服务器拉取到数据库）
-  ipcMain.handle('gmail:syncMessages', async (event, maxResults = 50) => {
+  ipcMain.handle('gmail:syncMessages', async (event, maxResults = 50, expectedAccountId = null) => {
     try {
-      const messages = await gmailService.syncMessages(maxResults);
+      const messages = await gmailService.syncMessages(maxResults, expectedAccountId);
       return { success: true, messages };
     } catch (error) {
       return { success: false, error: error.message };
@@ -278,9 +278,9 @@ function setupIpcHandlers() {
   });
 
   // 获取邮件列表（从数据库读取）
-  ipcMain.handle('gmail:listMessages', async (event, maxResults = 50) => {
+  ipcMain.handle('gmail:listMessages', async (event, maxResults = 50, expectedAccountId = null) => {
     try {
-      const messages = await gmailService.listMessages(maxResults);
+      const messages = await gmailService.listMessages(maxResults, expectedAccountId);
       return { success: true, messages };
     } catch (error) {
       return { success: false, error: error.message };
@@ -298,9 +298,9 @@ function setupIpcHandlers() {
   });
 
   // 发送邮件
-  ipcMain.handle('gmail:sendMessage', async (event, messageData) => {
+  ipcMain.handle('gmail:sendMessage', async (event, messageData, expectedAccountId = null) => {
     try {
-      const result = await gmailService.sendMessage(messageData);
+      const result = await gmailService.sendMessage(messageData, expectedAccountId);
       return { success: true, result };
     } catch (error) {
       return { success: false, error: error.message };
@@ -308,9 +308,9 @@ function setupIpcHandlers() {
   });
 
   // 删除邮件
-  ipcMain.handle('gmail:deleteMessage', async (event, messageId) => {
+  ipcMain.handle('gmail:deleteMessage', async (event, messageId, expectedAccountId = null) => {
     try {
-      await gmailService.deleteMessage(messageId);
+      await gmailService.deleteMessage(messageId, expectedAccountId);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -318,9 +318,9 @@ function setupIpcHandlers() {
   });
 
   // 标记为已读
-  ipcMain.handle('gmail:markAsRead', async (event, messageId) => {
+  ipcMain.handle('gmail:markAsRead', async (event, messageId, expectedAccountId = null) => {
     try {
-      await gmailService.markAsRead(messageId);
+      await gmailService.markAsRead(messageId, expectedAccountId);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };

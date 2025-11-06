@@ -135,12 +135,12 @@ class ApiAdapter {
       'authorize': { method: 'POST', url: '/api/gmail/authorize' },
       'setAuthCode': { method: 'POST', url: '/api/gmail/setAuthCode', body: (args) => ({ code: args[0] }) },
       'checkAuth': { method: 'GET', url: '/api/gmail/checkAuth' },
-      'syncMessages': { method: 'POST', url: '/api/gmail/syncMessages', body: (args) => ({ maxResults: args[0] }) },
-      'listMessages': { method: 'GET', url: `/api/gmail/listMessages?maxResults=${args[0] || 50}` },
+      'syncMessages': { method: 'POST', url: '/api/gmail/syncMessages', body: (args) => ({ maxResults: args[0], expectedAccountId: args[1] || null }) },
+      'listMessages': { method: 'GET', url: (args) => `/api/gmail/listMessages?maxResults=${args[0] || 50}${args[1] ? `&expectedAccountId=${args[1]}` : ''}` },
       'getMessage': { method: 'GET', url: `/api/gmail/getMessage/${args[0]}` },
-      'sendMessage': { method: 'POST', url: '/api/gmail/sendMessage', body: (args) => args[0] },
-      'deleteMessage': { method: 'DELETE', url: `/api/gmail/deleteMessage/${args[0]}` },
-      'markAsRead': { method: 'POST', url: `/api/gmail/markAsRead/${args[0]}` },
+      'sendMessage': { method: 'POST', url: '/api/gmail/sendMessage', body: (args) => ({ ...args[0], expectedAccountId: args[1] || null }) },
+      'deleteMessage': { method: 'DELETE', url: (args) => `/api/gmail/deleteMessage/${args[0]}${args[1] ? `?expectedAccountId=${args[1]}` : ''}` },
+      'markAsRead': { method: 'POST', url: `/api/gmail/markAsRead/${args[0]}`, body: (args) => ({ expectedAccountId: args[1] || null }) },
       'getStats': { method: 'GET', url: '/api/gmail/getStats' },
 
       // 账号操作

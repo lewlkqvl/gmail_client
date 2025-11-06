@@ -304,17 +304,23 @@ async function switchToAccount(accountId, email) {
     if (result.success) {
       console.log('✅ 账号切换成功');
 
+      // 验证切换是否成功
+      const activeResult = await window.gmailAPI.account.getActive();
+      if (activeResult.success && activeResult.account && activeResult.account.id !== accountId) {
+        throw new Error(`Account switch verification failed: expected ${accountId}, got ${activeResult.account.id}`);
+      }
+
       // 刷新侧边栏和顶部账号信息
       await loadSidebarAccounts();
       await loadActiveAccount();
 
-      // 加载新账号的邮件列表
-      await loadMessages();
+      // 加载新账号的邮件列表，传递 accountId 进行验证
+      await loadMessages(accountId);
 
-      // 同步新账号的邮件（静默失败）
+      // 同步新账号的邮件（静默失败），传递 accountId 进行验证
       setTimeout(async () => {
         try {
-          await syncMessages(false);
+          await syncMessages(false, accountId);
           console.log('✅ 账号邮件同步成功');
         } catch (error) {
           console.error('⚠️ 账号邮件同步失败:', error);
@@ -431,16 +437,16 @@ authImportBtn.addEventListener('click', async () => {
 });
 
 // 同步邮件
-async function syncMessages(showAlert = true) {
+async function syncMessages(showAlert = true, expectedAccountId = null) {
   loading.classList.remove('hidden');
   mailListContainer.innerHTML = '';
 
   try {
-    const result = await window.gmailAPI.syncMessages(50);
+    const result = await window.gmailAPI.syncMessages(50, expectedAccountId);
     loading.classList.add('hidden');
 
     if (result.success) {
-      await loadMessages();
+      await loadMessages(expectedAccountId);
       return true;
     } else {
       if (showAlert) {
@@ -460,10 +466,10 @@ async function syncMessages(showAlert = true) {
 }
 
 // 加载邮件列表（从数据库）
-async function loadMessages() {
+async function loadMessages(expectedAccountId = null) {
   loading.classList.remove('hidden');
 
-  const result = await window.gmailAPI.listMessages(50);
+  const result = await window.gmailAPI.listMessages(50, expectedAccountId);
   loading.classList.add('hidden');
 
   if (result.success) {

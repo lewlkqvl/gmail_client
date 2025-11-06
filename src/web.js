@@ -145,8 +145,8 @@ class WebServer {
     // 同步邮件
     this.app.post('/api/gmail/syncMessages', async (req, res) => {
       try {
-        const { maxResults = 50 } = req.body;
-        const messages = await this.gmailService.syncMessages(maxResults);
+        const { maxResults = 50, expectedAccountId = null } = req.body;
+        const messages = await this.gmailService.syncMessages(maxResults, expectedAccountId);
         res.json({ success: true, messages });
       } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -157,7 +157,8 @@ class WebServer {
     this.app.get('/api/gmail/listMessages', async (req, res) => {
       try {
         const maxResults = parseInt(req.query.maxResults) || 50;
-        const messages = await this.gmailService.listMessages(maxResults);
+        const expectedAccountId = req.query.expectedAccountId ? parseInt(req.query.expectedAccountId) : null;
+        const messages = await this.gmailService.listMessages(maxResults, expectedAccountId);
         res.json({ success: true, messages });
       } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -178,8 +179,8 @@ class WebServer {
     // 发送邮件
     this.app.post('/api/gmail/sendMessage', async (req, res) => {
       try {
-        const messageData = req.body;
-        const result = await this.gmailService.sendMessage(messageData);
+        const { expectedAccountId, ...messageData } = req.body;
+        const result = await this.gmailService.sendMessage(messageData, expectedAccountId || null);
         res.json({ success: true, result });
       } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -190,7 +191,8 @@ class WebServer {
     this.app.delete('/api/gmail/deleteMessage/:messageId', async (req, res) => {
       try {
         const { messageId } = req.params;
-        await this.gmailService.deleteMessage(messageId);
+        const expectedAccountId = req.query.expectedAccountId ? parseInt(req.query.expectedAccountId) : null;
+        await this.gmailService.deleteMessage(messageId, expectedAccountId);
         res.json({ success: true });
       } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -201,7 +203,8 @@ class WebServer {
     this.app.post('/api/gmail/markAsRead/:messageId', async (req, res) => {
       try {
         const { messageId } = req.params;
-        await this.gmailService.markAsRead(messageId);
+        const { expectedAccountId = null } = req.body;
+        await this.gmailService.markAsRead(messageId, expectedAccountId);
         res.json({ success: true });
       } catch (error) {
         res.status(500).json({ success: false, error: error.message });

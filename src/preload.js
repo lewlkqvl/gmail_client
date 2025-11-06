@@ -8,12 +8,12 @@ contextBridge.exposeInMainWorld('gmailAPI', {
   checkAuth: () => ipcRenderer.invoke('gmail:checkAuth'),
 
   // 邮件操作
-  syncMessages: (maxResults) => ipcRenderer.invoke('gmail:syncMessages', maxResults),
-  listMessages: (maxResults) => ipcRenderer.invoke('gmail:listMessages', maxResults),
+  syncMessages: (maxResults, expectedAccountId) => ipcRenderer.invoke('gmail:syncMessages', maxResults, expectedAccountId),
+  listMessages: (maxResults, expectedAccountId) => ipcRenderer.invoke('gmail:listMessages', maxResults, expectedAccountId),
   getMessage: (messageId) => ipcRenderer.invoke('gmail:getMessage', messageId),
-  sendMessage: (messageData) => ipcRenderer.invoke('gmail:sendMessage', messageData),
-  deleteMessage: (messageId) => ipcRenderer.invoke('gmail:deleteMessage', messageId),
-  markAsRead: (messageId) => ipcRenderer.invoke('gmail:markAsRead', messageId),
+  sendMessage: (messageData, expectedAccountId) => ipcRenderer.invoke('gmail:sendMessage', messageData, expectedAccountId),
+  deleteMessage: (messageId, expectedAccountId) => ipcRenderer.invoke('gmail:deleteMessage', messageId, expectedAccountId),
+  markAsRead: (messageId, expectedAccountId) => ipcRenderer.invoke('gmail:markAsRead', messageId, expectedAccountId),
   getStats: () => ipcRenderer.invoke('gmail:getStats'),
 
   // 账号管理

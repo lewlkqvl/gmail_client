@@ -181,18 +181,37 @@ class GmailService {
     console.log('Account switched successfully to:', account.email);
   }
 
+  /**
+   * 验证账号是否匹配活动账号
+   * 用于防止账号不匹配导致的数据混乱
+   */
+  validateAccountMatch(expectedAccountId, activeAccount) {
+    if (!activeAccount) {
+      throw new Error('No active account');
+    }
+
+    if (expectedAccountId && activeAccount.id !== expectedAccountId) {
+      throw new Error(
+        `Account mismatch: expected account ${expectedAccountId}, but active account is ${activeAccount.id} (${activeAccount.email})`
+      );
+    }
+  }
+
   async isAuthorized() {
     const activeAccount = this.dbService.getActiveAccount();
     return !!(activeAccount && activeAccount.access_token);
   }
 
-  async syncMessages(maxResults = 50) {
+  async syncMessages(maxResults = 50, expectedAccountId = null) {
     // 从数据库加载活动账号
     const activeAccount = this.dbService.getActiveAccount();
 
     if (!activeAccount || !activeAccount.access_token) {
       throw new Error('Not authorized. Please authorize first.');
     }
+
+    // 验证账号匹配
+    this.validateAccountMatch(expectedAccountId, activeAccount);
 
     console.log('syncMessages called for account:', activeAccount.email);
 
@@ -251,13 +270,16 @@ class GmailService {
     return detailedMessages.filter(msg => msg !== null);
   }
 
-  async listMessages(maxResults = 50) {
+  async listMessages(maxResults = 50, expectedAccountId = null) {
     // 从数据库加载活动账号
     const activeAccount = this.dbService.getActiveAccount();
 
     if (!activeAccount || !activeAccount.id) {
       throw new Error('No active account');
     }
+
+    // 验证账号匹配
+    this.validateAccountMatch(expectedAccountId, activeAccount);
 
     // 从数据库读取邮件（不需要Gmail API）
     return this.dbService.getMessages(activeAccount.id, maxResults);
@@ -322,12 +344,15 @@ class GmailService {
     return message;
   }
 
-  async sendMessage({ to, subject, message }) {
+  async sendMessage({ to, subject, message }, expectedAccountId = null) {
     // 获取活动账号并创建独立 Gmail 实例
     const activeAccount = this.dbService.getActiveAccount();
     if (!activeAccount || !activeAccount.access_token) {
       throw new Error('Not authorized. Please authorize first.');
     }
+
+    // 验证账号匹配
+    this.validateAccountMatch(expectedAccountId, activeAccount);
 
     const { gmail } = this.createGmailInstance(activeAccount);
 
@@ -356,12 +381,15 @@ class GmailService {
     return response.data;
   }
 
-  async deleteMessage(messageId) {
+  async deleteMessage(messageId, expectedAccountId = null) {
     // 获取活动账号并创建独立 Gmail 实例
     const activeAccount = this.dbService.getActiveAccount();
     if (!activeAccount || !activeAccount.access_token) {
       throw new Error('Not authorized. Please authorize first.');
     }
+
+    // 验证账号匹配
+    this.validateAccountMatch(expectedAccountId, activeAccount);
 
     const { gmail } = this.createGmailInstance(activeAccount);
 
@@ -382,12 +410,15 @@ class GmailService {
     }
   }
 
-  async markAsRead(messageId) {
+  async markAsRead(messageId, expectedAccountId = null) {
     // 获取活动账号并创建独立 Gmail 实例
     const activeAccount = this.dbService.getActiveAccount();
     if (!activeAccount || !activeAccount.access_token) {
       throw new Error('Not authorized. Please authorize first.');
     }
+
+    // 验证账号匹配
+    this.validateAccountMatch(expectedAccountId, activeAccount);
 
     const { gmail } = this.createGmailInstance(activeAccount);
 
