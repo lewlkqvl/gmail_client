@@ -11,24 +11,26 @@
     <!-- 授权界面 -->
     <div id="auth-screen" class="screen">
       <div class="auth-container">
-        <h1>Gmail 客户端</h1>
-        <p>请先进行 Google 账号授权</p>
-        <button id="auth-btn" class="btn btn-primary">授权 Gmail 访问</button>
+        <div class="auth-card">
+          <h1>📬 Gmail 客户端</h1>
+          <p>请先进行 Google 账号授权以开始使用</p>
+          <button id="auth-btn" class="btn btn-primary">🔐 授权 Gmail 访问</button>
 
-        <div id="auth-waiting" class="hidden">
-          <div class="auth-instructions">
-            <h3>⏳ 等待授权中...</h3>
-            <ol>
-              <li>浏览器将在隐私模式下自动打开授权页面</li>
-              <li>在浏览器中选择您的 Google 账号并授权</li>
-              <li>授权成功后，浏览器会显示成功页面</li>
-              <li>应用将自动完成登录，无需手动操作</li>
-            </ol>
-            <p class="hint">💡 提示：授权过程会在独立的隐私浏览器窗口中进行，不会保留任何浏览记录</p>
+          <div id="auth-waiting" class="hidden">
+            <div class="auth-instructions">
+              <h3>⏳ 等待授权中...</h3>
+              <ol>
+                <li>浏览器将在隐私模式下自动打开授权页面</li>
+                <li>在浏览器中选择您的 Google 账号并授权</li>
+                <li>授权成功后，浏览器会显示成功页面</li>
+                <li>应用将自动完成登录，无需手动操作</li>
+              </ol>
+              <p class="hint">💡 提示：授权过程会在独立的隐私浏览器窗口中进行，不会保留任何浏览记录</p>
+            </div>
           </div>
-        </div>
 
-        <div id="auth-error" class="error hidden"></div>
+          <div id="auth-error" class="error hidden"></div>
+        </div>
       </div>
     </div>
 
@@ -36,13 +38,13 @@
     <div id="main-screen" class="screen hidden">
       <div class="header">
         <div class="header-left">
-          <h1>Gmail 客户端</h1>
+          <h1>📬 Gmail</h1>
           <div id="account-info" class="account-info"></div>
         </div>
         <div class="header-right">
-          <button id="accounts-btn" class="btn">账号管理</button>
-          <button id="compose-btn" class="btn btn-primary">写邮件</button>
-          <button id="sync-btn" class="btn">同步邮件</button>
+          <button id="sync-btn" class="btn">🔄 同步</button>
+          <button id="compose-btn" class="btn btn-primary">✉️ 写邮件</button>
+          <button id="accounts-btn" class="btn">👤 账号</button>
         </div>
       </div>
 
@@ -62,8 +64,8 @@
             <div class="mail-detail-header">
               <h2 id="detail-subject"></h2>
               <div class="mail-actions">
-                <button id="reply-btn" class="btn btn-sm">回复</button>
-                <button id="delete-btn" class="btn btn-sm btn-danger">删除</button>
+                <button id="reply-btn" class="btn btn-sm">↩️ 回复</button>
+                <button id="delete-btn" class="btn btn-sm btn-danger">🗑️ 删除</button>
               </div>
             </div>
             <div class="mail-meta">
@@ -81,25 +83,25 @@
     <div id="compose-modal" class="modal hidden">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>写邮件</h2>
+          <h2>✉️ 写邮件</h2>
           <button class="close-btn" data-close="compose-modal">&times;</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="compose-to">收件人：</label>
+            <label for="compose-to">📧 收件人</label>
             <input type="email" id="compose-to" placeholder="recipient@example.com" required>
           </div>
           <div class="form-group">
-            <label for="compose-subject">主题：</label>
+            <label for="compose-subject">📝 主题</label>
             <input type="text" id="compose-subject" placeholder="邮件主题" required>
           </div>
           <div class="form-group">
-            <label for="compose-message">内容：</label>
-            <textarea id="compose-message" rows="10" placeholder="邮件内容" required></textarea>
+            <label for="compose-message">📄 内容</label>
+            <textarea id="compose-message" rows="10" placeholder="请输入邮件内容..." required></textarea>
           </div>
           <div class="modal-footer">
-            <button id="send-btn" class="btn btn-primary">发送</button>
             <button class="btn" data-close="compose-modal">取消</button>
+            <button id="send-btn" class="btn btn-primary">📤 发送</button>
           </div>
           <div id="compose-error" class="error hidden"></div>
           <div id="compose-success" class="success hidden"></div>
@@ -111,14 +113,14 @@
     <div id="accounts-modal" class="modal hidden">
       <div class="modal-content modal-large">
         <div class="modal-header">
-          <h2>账号管理</h2>
+          <h2>👤 账号管理</h2>
           <button class="close-btn" data-close="accounts-modal">&times;</button>
         </div>
         <div class="modal-body">
           <div class="accounts-toolbar">
-            <button id="add-account-btn" class="btn btn-primary">添加授权账号</button>
-            <button id="import-accounts-btn" class="btn">导入账号</button>
-            <button id="export-accounts-btn" class="btn">导出账号</button>
+            <button id="add-account-btn" class="btn btn-primary">➕ 添加账号</button>
+            <button id="import-accounts-btn" class="btn">📥 导入</button>
+            <button id="export-accounts-btn" class="btn">📤 导出</button>
           </div>
 
           <div id="accounts-list" class="accounts-list">

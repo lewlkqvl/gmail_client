@@ -4,10 +4,28 @@
   box-sizing: border-box;
 }
 
+:root {
+  --primary-color: #4285f4;
+  --primary-hover: #3367d6;
+  --danger-color: #ea4335;
+  --danger-hover: #d33828;
+  --success-color: #34a853;
+  --text-primary: #202124;
+  --text-secondary: #5f6368;
+  --text-disabled: #9aa0a6;
+  --border-color: #dadce0;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-hover: #f1f3f4;
+  --shadow-sm: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --shadow-md: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #f5f5f5;
-  color: #333;
+  font-family: 'Google Sans', 'Segoe UI', Roboto, -apple-system, sans-serif;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.5;
 }
 
 #app {
@@ -25,257 +43,341 @@ body {
   display: none !important;
 }
 
-/* 授权界面 */
+/* ==================== 授权界面 ==================== */
 .auth-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100vh;
-  padding: 20px;
+  padding: 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.auth-card {
+  background: var(--bg-primary);
+  padding: 48px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  max-width: 480px;
+  width: 100%;
 }
 
 .auth-container h1 {
-  margin-bottom: 20px;
-  color: #1a73e8;
+  font-size: 32px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .auth-container p {
-  margin-bottom: 20px;
-  color: #666;
+  margin-bottom: 32px;
+  color: var(--text-secondary);
+  font-size: 16px;
 }
 
 #auth-waiting {
-  margin-top: 20px;
-  text-align: center;
-  max-width: 700px;
+  margin-top: 24px;
+  text-align: left;
 }
 
 .auth-instructions {
-  background-color: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background-color: #e8f0fe;
+  border-left: 4px solid var(--primary-color);
   border-radius: 8px;
-  padding: 20px;
-  margin: 20px auto;
-  max-width: 600px;
+  padding: 24px;
+  margin: 24px 0;
   text-align: left;
 }
 
 .auth-instructions h3 {
-  margin: 0 0 15px 0;
-  color: #1a73e8;
+  margin: 0 0 16px 0;
+  color: var(--primary-color);
   font-size: 18px;
+  font-weight: 500;
 }
 
 .auth-instructions ol {
-  margin: 15px 0;
-  padding-left: 25px;
+  margin: 16px 0;
+  padding-left: 24px;
 }
 
 .auth-instructions li {
-  margin: 10px 0;
+  margin: 12px 0;
   line-height: 1.6;
-  color: #333;
-}
-
-.auth-instructions code {
-  background-color: #e8f0fe;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-  color: #1a73e8;
+  color: var(--text-primary);
 }
 
 .auth-instructions .hint {
-  margin: 15px 0 0 0;
-  padding: 10px;
-  background-color: #fff3cd;
-  border-left: 3px solid #ffc107;
+  margin: 16px 0 0 0;
+  padding: 12px;
+  background-color: #fef7e0;
+  border-left: 3px solid #f9ab00;
   border-radius: 4px;
-  color: #856404;
+  color: #7a5500;
   font-size: 14px;
 }
 
-/* 主界面 */
+/* ==================== 主界面 ==================== */
 .header {
   display: flex;
   align-items: center;
-  padding: 15px 20px;
-  background-color: #1a73e8;
-  color: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .header h1 {
-  font-size: 20px;
-  flex: 1;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.header-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.account-info {
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 6px 16px;
+  background-color: var(--bg-secondary);
+  border-radius: 20px;
+  font-weight: 500;
 }
 
 .content {
   display: flex;
-  height: calc(100vh - 61px);
+  height: calc(100vh - 65px);
 }
 
-/* 邮件列表 */
+/* ==================== 邮件列表 ==================== */
 .mail-list {
-  width: 400px;
-  background-color: white;
-  border-right: 1px solid #ddd;
+  width: 360px;
+  background-color: var(--bg-primary);
+  border-right: 1px solid var(--border-color);
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .loading {
-  padding: 20px;
+  padding: 32px;
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .mail-item {
-  padding: 15px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.15s ease;
+  position: relative;
 }
 
 .mail-item:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-hover);
 }
 
 .mail-item.active {
   background-color: #e8f0fe;
+  border-left: 3px solid var(--primary-color);
 }
 
 .mail-item.unread {
-  font-weight: bold;
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
+}
+
+.mail-item.unread .mail-item-from {
+  font-weight: 600;
 }
 
 .mail-item-from {
-  font-weight: 600;
-  color: #202124;
-  margin-bottom: 5px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .mail-item-subject {
-  color: #5f6368;
-  margin-bottom: 3px;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .mail-item-snippet {
-  font-size: 13px;
-  color: #80868b;
+  font-size: 12px;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 6px;
 }
 
 .mail-item-date {
-  font-size: 12px;
-  color: #5f6368;
-  margin-top: 5px;
+  font-size: 11px;
+  color: var(--text-disabled);
+  margin-top: 4px;
 }
 
-/* 邮件详情 */
+/* ==================== 邮件详情 ==================== */
 .mail-detail {
   flex: 1;
-  background-color: white;
+  background-color: var(--bg-primary);
   overflow-y: auto;
 }
 
 .empty-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #80868b;
+  color: var(--text-disabled);
   font-size: 16px;
 }
 
+.empty-state::before {
+  content: "📧";
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+
 #mail-detail-container {
-  padding: 30px;
+  padding: 32px 40px;
+  max-width: 900px;
 }
 
 .mail-detail-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #e0e0e0;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .mail-detail-header h2 {
   font-size: 24px;
-  color: #202124;
+  font-weight: 500;
+  color: var(--text-primary);
   flex: 1;
-  margin-right: 20px;
+  margin-right: 24px;
+  line-height: 1.3;
 }
 
 .mail-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .mail-meta {
-  margin-bottom: 30px;
-  color: #5f6368;
+  margin-bottom: 32px;
+  padding: 16px;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  color: var(--text-secondary);
   line-height: 1.8;
+  font-size: 14px;
+}
+
+.mail-meta strong {
+  color: var(--text-primary);
+  font-weight: 500;
+  min-width: 70px;
+  display: inline-block;
 }
 
 .mail-body {
-  line-height: 1.6;
-  color: #202124;
+  line-height: 1.7;
+  color: var(--text-primary);
   white-space: pre-wrap;
   word-wrap: break-word;
+  font-size: 15px;
 }
 
-/* 按钮 */
+/* ==================== 按钮 ==================== */
 .btn {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.2s;
-  background-color: white;
-  color: #1a73e8;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-primary {
-  background-color: #1a73e8;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .btn-primary:hover {
-  background-color: #1765cc;
+  background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
 }
 
 .btn-danger {
-  background-color: #d93025;
+  background-color: var(--danger-color);
   color: white;
 }
 
 .btn-danger:hover {
-  background-color: #c5221f;
+  background-color: var(--danger-hover);
 }
 
 .btn-sm {
-  padding: 6px 12px;
+  padding: 6px 16px;
   font-size: 13px;
 }
 
-/* 模态框 */
+/* ==================== 模态框 ==================== */
 .modal {
   position: fixed;
   top: 0;
@@ -287,52 +389,79 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-content {
-  background-color: white;
+  background-color: var(--bg-primary);
   width: 600px;
-  max-height: 80vh;
-  border-radius: 8px;
+  max-height: 85vh;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 24px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h2 {
   font-size: 20px;
-  color: #202124;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .close-btn {
   background: none;
   border: none;
-  font-size: 28px;
-  color: #5f6368;
+  font-size: 24px;
+  color: var(--text-secondary);
   cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
+  padding: 8px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
 }
 
 .close-btn:hover {
-  color: #202124;
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .modal-body {
-  padding: 20px;
+  padding: 24px;
   overflow-y: auto;
-  max-height: calc(80vh - 80px);
+  max-height: calc(85vh - 140px);
 }
 
 .form-group {
@@ -341,88 +470,75 @@ body {
 
 .form-group label {
   display: block;
-  margin-bottom: 5px;
-  color: #5f6368;
+  margin-bottom: 8px;
+  color: var(--text-primary);
   font-weight: 500;
+  font-size: 14px;
 }
 
 .form-group input,
 .form-group textarea {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
+  transition: all 0.2s;
+  background-color: var(--bg-primary);
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #1a73e8;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .modal-footer {
   display: flex;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 12px;
+  margin-top: 24px;
+  justify-content: flex-end;
 }
 
-/* 消息提示 */
+/* ==================== 消息提示 ==================== */
 .error {
-  padding: 10px;
-  margin-top: 10px;
+  padding: 12px 16px;
+  margin-top: 12px;
   background-color: #fce8e6;
-  color: #d93025;
-  border-radius: 4px;
+  color: var(--danger-color);
+  border-radius: 8px;
   font-size: 14px;
+  border-left: 4px solid var(--danger-color);
 }
 
 .success {
-  padding: 10px;
-  margin-top: 10px;
+  padding: 12px 16px;
+  margin-top: 12px;
   background-color: #e6f4ea;
-  color: #137333;
-  border-radius: 4px;
+  color: var(--success-color);
+  border-radius: 8px;
   font-size: 14px;
+  border-left: 4px solid var(--success-color);
 }
 
-/* 头部布局 */
-.header-left {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.header-right {
-  display: flex;
-  gap: 10px;
-}
-
-.account-info {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
-  padding: 4px 12px;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-}
-
-/* 账号管理模态框 */
+/* ==================== 账号管理 ==================== */
 .modal-large {
-  width: 800px;
+  width: 700px;
 }
 
 .accounts-toolbar {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #e0e0e0;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
 }
 
 .accounts-list {
-  max-height: 400px;
+  max-height: 450px;
   overflow-y: auto;
 }
 
@@ -430,44 +546,51 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  margin-bottom: 10px;
+  padding: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  margin-bottom: 12px;
   transition: all 0.2s;
+  background-color: var(--bg-primary);
 }
 
 .account-item:hover {
-  border-color: #1a73e8;
-  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  transform: translateY(-2px);
 }
 
 .account-item.active {
-  border-color: #1a73e8;
-  background-color: #e8f0fe;
+  border-color: var(--primary-color);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
 }
 
 .account-info-group {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .account-email {
-  font-weight: 600;
-  color: #202124;
-  margin-bottom: 5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 15px;
 }
 
 .account-status {
   font-size: 12px;
-  color: #5f6368;
+  color: var(--text-secondary);
 }
 
 .account-status.authorized {
-  color: #137333;
+  color: var(--success-color);
+  font-weight: 500;
 }
 
 .account-status.not-authorized {
-  color: #d93025;
+  color: var(--danger-color);
+  font-weight: 500;
 }
 
 .account-actions {
@@ -476,12 +599,47 @@ body {
 }
 
 .account-badge {
-  display: inline-block;
-  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
   font-size: 11px;
   font-weight: 600;
   color: white;
-  background-color: #1a73e8;
-  border-radius: 10px;
-  margin-left: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  margin-left: 12px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* ==================== 滚动条样式 ==================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-disabled);
+}
+
+/* ==================== 动画效果 ==================== */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading::after {
+  content: "⏳";
+  display: inline-block;
+  animation: spin 2s linear infinite;
+  margin-left: 8px;
 }
