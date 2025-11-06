@@ -2,6 +2,9 @@
 let currentMessages = [];
 let currentMessageId = null;
 let currentAccounts = [];
+let sidebarCurrentPage = 1;
+let sidebarPageSize = 10;
+let sidebarTotalPages = 1;
 
 // DOM 元素
 const authScreen = document.getElementById('auth-screen');
@@ -37,11 +40,20 @@ const accountsList = document.getElementById('accounts-list');
 const accountsError = document.getElementById('accounts-error');
 const accountsSuccess = document.getElementById('accounts-success');
 
+// 侧边栏账号列表元素
+const accountsSidebarList = document.getElementById('accounts-sidebar-list');
+const accountsPagination = document.getElementById('accounts-pagination');
+const prevPageBtn = document.getElementById('prev-page-btn');
+const nextPageBtn = document.getElementById('next-page-btn');
+const pageInfo = document.getElementById('page-info');
+const sidebarAddAccountBtn = document.getElementById('sidebar-add-account-btn');
+
 // 初始化
 async function initialize() {
   const result = await window.gmailAPI.checkAuth();
   if (result.success && result.isAuthorized) {
     showMainScreen();
+    await loadSidebarAccounts();
     await loadActiveAccount();
     await loadMessages();
   } else {
@@ -54,6 +66,9 @@ async function initialize() {
 
     // 切换到主界面
     showMainScreen();
+
+    // 加载侧边栏账号列表
+    await loadSidebarAccounts();
 
     // 加载账号信息
     await loadActiveAccount();
@@ -97,6 +112,160 @@ function showMainScreen() {
   authScreen.classList.add('hidden');
   mainScreen.classList.remove('hidden');
 }
+
+// ==================== 侧边栏账号列表 ====================
+
+// 加载侧边栏账号列表
+async function loadSidebarAccounts() {
+  const result = await window.gmailAPI.account.getAll();
+  if (result.success) {
+    currentAccounts = result.accounts;
+    renderSidebarAccounts();
+  } else {
+    console.error('加载账号列表失败:', result.error);
+  }
+}
+
+// 渲染侧边栏账号列表（支持分页）
+function renderSidebarAccounts() {
+  accountsSidebarList.innerHTML = '';
+
+  if (currentAccounts.length === 0) {
+    accountsSidebarList.innerHTML = '<div style="padding: 20px; text-align: center; color: #80868b; font-size: 12px;">暂无账号</div>';
+    accountsPagination.classList.add('hidden');
+    return;
+  }
+
+  // 计算总页数
+  sidebarTotalPages = Math.ceil(currentAccounts.length / sidebarPageSize);
+
+  // 确保当前页在有效范围内
+  if (sidebarCurrentPage > sidebarTotalPages) {
+    sidebarCurrentPage = sidebarTotalPages;
+  }
+  if (sidebarCurrentPage < 1) {
+    sidebarCurrentPage = 1;
+  }
+
+  // 计算当前页的账号
+  const startIndex = (sidebarCurrentPage - 1) * sidebarPageSize;
+  const endIndex = Math.min(startIndex + sidebarPageSize, currentAccounts.length);
+  const pageAccounts = currentAccounts.slice(startIndex, endIndex);
+
+  // 渲染当前页的账号
+  pageAccounts.forEach(account => {
+    const accountItem = document.createElement('div');
+    accountItem.className = 'sidebar-account-item';
+
+    if (account.is_active) {
+      accountItem.classList.add('active');
+    }
+
+    if (!account.has_token) {
+      accountItem.classList.add('not-authorized');
+    }
+
+    const statusClass = account.has_token ? 'authorized' : 'not-authorized';
+    const statusText = account.has_token ? '✓ 已授权' : '✗ 未授权';
+
+    accountItem.innerHTML = `
+      <div class="sidebar-account-email" title="${escapeHtml(account.email)}">
+        ${escapeHtml(account.email)}
+      </div>
+      <div class="sidebar-account-status ${statusClass}">${statusText}</div>
+    `;
+
+    // 只有已授权的账号才能点击切换
+    if (account.has_token) {
+      accountItem.onclick = () => {
+        if (!account.is_active) {
+          switchToAccount(account.id, account.email);
+        }
+      };
+    }
+
+    accountsSidebarList.appendChild(accountItem);
+  });
+
+  // 更新分页控件
+  updatePaginationControls();
+}
+
+// 更新分页控件
+function updatePaginationControls() {
+  if (sidebarTotalPages <= 1) {
+    accountsPagination.classList.add('hidden');
+    return;
+  }
+
+  accountsPagination.classList.remove('hidden');
+  pageInfo.textContent = `${sidebarCurrentPage}/${sidebarTotalPages}`;
+
+  // 更新按钮状态
+  prevPageBtn.disabled = sidebarCurrentPage <= 1;
+  nextPageBtn.disabled = sidebarCurrentPage >= sidebarTotalPages;
+}
+
+// 切换到指定账号并同步邮件
+async function switchToAccount(accountId, email) {
+  console.log(`切换账号: ${email} (ID: ${accountId})`);
+
+  // 显示加载状态
+  loading.classList.remove('hidden');
+  mailListContainer.innerHTML = '';
+
+  try {
+    // 调用切换账号API
+    const result = await window.gmailAPI.account.switch(accountId);
+    if (result.success) {
+      console.log('✅ 账号切换成功');
+
+      // 刷新侧边栏和顶部账号信息
+      await loadSidebarAccounts();
+      await loadActiveAccount();
+
+      // 加载新账号的邮件列表
+      await loadMessages();
+
+      // 同步新账号的邮件（静默失败）
+      setTimeout(async () => {
+        try {
+          await syncMessages(false);
+          console.log('✅ 账号邮件同步成功');
+        } catch (error) {
+          console.error('⚠️ 账号邮件同步失败:', error);
+        }
+      }, 1000);
+    } else {
+      loading.classList.add('hidden');
+      alert('切换账号失败: ' + result.error);
+    }
+  } catch (error) {
+    loading.classList.add('hidden');
+    alert('切换账号失败: ' + error.message);
+    console.error('切换账号错误:', error);
+  }
+}
+
+// 分页按钮事件监听
+prevPageBtn.addEventListener('click', () => {
+  if (sidebarCurrentPage > 1) {
+    sidebarCurrentPage--;
+    renderSidebarAccounts();
+  }
+});
+
+nextPageBtn.addEventListener('click', () => {
+  if (sidebarCurrentPage < sidebarTotalPages) {
+    sidebarCurrentPage++;
+    renderSidebarAccounts();
+  }
+});
+
+// 侧边栏添加账号按钮
+sidebarAddAccountBtn.addEventListener('click', () => {
+  openModal('accounts-modal');
+});
 
 // 加载活动账号信息
 async function loadActiveAccount() {
@@ -545,17 +714,28 @@ function renderAccounts(accounts) {
   });
 }
 
-// 切换账号
+// 切换账号（从账号管理模态框）
 window.switchAccount = async function(accountId) {
   const result = await window.gmailAPI.account.switch(accountId);
   if (result.success) {
     showSuccess(accountsSuccess, '切换成功！');
     await loadAccounts();
+    await loadSidebarAccounts();
     await loadActiveAccount();
     await loadMessages();
 
     setTimeout(() => {
       closeModal('accounts-modal');
+    }, 1000);
+
+    // 同步新账号的邮件（静默失败）
+    setTimeout(async () => {
+      try {
+        await syncMessages(false);
+        console.log('✅ 账号邮件同步成功');
+      } catch (error) {
+        console.error('⚠️ 账号邮件同步失败:', error);
+      }
     }, 1000);
   } else {
     showError(accountsError, result.error);
@@ -570,6 +750,7 @@ window.deleteAccount = async function(accountId) {
   if (result.success) {
     showSuccess(accountsSuccess, '删除成功！');
     await loadAccounts();
+    await loadSidebarAccounts();
   } else {
     showError(accountsError, result.error);
   }
@@ -587,8 +768,9 @@ addAccountBtn.addEventListener('click', async () => {
       if (authResult.success) {
         showSuccess(accountsSuccess, `账号 ${authResult.email} 添加成功！`);
 
-        // 刷新账号列表和活动账号信息
+        // 刷新账号列表、侧边栏和活动账号信息
         await loadAccounts();
+        await loadSidebarAccounts();
         await loadActiveAccount();
 
         // 加载新账号的邮件列表

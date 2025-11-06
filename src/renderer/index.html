@@ -49,6 +49,22 @@
       </div>
 
       <div class="content">
+        <!-- 账号列表 -->
+        <div class="accounts-sidebar">
+          <div class="accounts-sidebar-header">
+            <h3>📧 账号</h3>
+            <button id="sidebar-add-account-btn" class="btn btn-icon" title="添加账号">➕</button>
+          </div>
+          <div id="accounts-sidebar-list" class="accounts-sidebar-list">
+            <!-- 账号列表将动态生成 -->
+          </div>
+          <div id="accounts-pagination" class="accounts-pagination hidden">
+            <button id="prev-page-btn" class="btn btn-sm" disabled>‹</button>
+            <span id="page-info">1/1</span>
+            <button id="next-page-btn" class="btn btn-sm" disabled>›</button>
+          </div>
+        </div>
+
         <!-- 邮件列表 -->
         <div class="mail-list">
           <div id="loading" class="loading hidden">加载中...</div>
