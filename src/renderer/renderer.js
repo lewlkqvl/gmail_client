@@ -264,6 +264,149 @@ function renderMessageDetail(message) {
   } else {
     bodyElement.textContent = body;
   }
+
+  // 提取并显示邮件中的链接
+  extractAndDisplayLinks(body);
+}
+
+// 提取邮件中的所有链接
+function extractLinks(html) {
+  const links = new Set(); // 使用Set去重
+  const urlRegex = /(https?:\/\/[^\s<>"]+)/gi;
+
+  // 方式1: 从HTML中提取<a>标签的href
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const anchorTags = doc.querySelectorAll('a[href]');
+
+  anchorTags.forEach(a => {
+    const href = a.getAttribute('href');
+    if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+      links.add(href);
+    }
+  });
+
+  // 方式2: 从纯文本中提取URL（处理纯文本邮件）
+  const textContent = doc.body ? doc.body.textContent : html;
+  const matches = textContent.matchAll(urlRegex);
+  for (const match of matches) {
+    links.add(match[0]);
+  }
+
+  return Array.from(links);
+}
+
+// 显示提取的链接
+function extractAndDisplayLinks(body) {
+  const linksSection = document.getElementById('mail-links-section');
+  const linksList = document.getElementById('mail-links-list');
+  const linksCount = document.getElementById('links-count');
+
+  if (!body) {
+    linksSection.classList.add('hidden');
+    return;
+  }
+
+  const links = extractLinks(body);
+
+  if (links.length === 0) {
+    linksSection.classList.add('hidden');
+    return;
+  }
+
+  // 显示链接区域
+  linksSection.classList.remove('hidden');
+  linksCount.textContent = links.length;
+
+  // 清空列表
+  linksList.innerHTML = '';
+
+  // 渲染每个链接
+  links.forEach((link, index) => {
+    const linkItem = document.createElement('div');
+    linkItem.className = 'link-item';
+
+    const linkText = document.createElement('a');
+    linkText.className = 'link-url';
+    linkText.href = link;
+    linkText.target = '_blank';
+    linkText.rel = 'noopener noreferrer';
+    linkText.textContent = truncateUrl(link, 60);
+    linkText.title = link;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn btn-sm copy-link-btn';
+    copyBtn.textContent = '📋 复制';
+    copyBtn.dataset.url = link;
+    copyBtn.onclick = (e) => {
+      e.preventDefault();
+      copyToClipboard(link, copyBtn);
+    };
+
+    linkItem.appendChild(linkText);
+    linkItem.appendChild(copyBtn);
+    linksList.appendChild(linkItem);
+  });
+}
+
+// 截断过长的URL显示
+function truncateUrl(url, maxLength) {
+  if (url.length <= maxLength) return url;
+  return url.substring(0, maxLength - 3) + '...';
+}
+
+// 复制到剪贴板
+function copyToClipboard(text, button) {
+  // 使用现代Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        showCopySuccess(button);
+      })
+      .catch(err => {
+        console.error('复制失败:', err);
+        fallbackCopyToClipboard(text, button);
+      });
+  } else {
+    // 降级方案
+    fallbackCopyToClipboard(text, button);
+  }
+}
+
+// 降级复制方案（兼容旧浏览器）
+function fallbackCopyToClipboard(text, button) {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-9999px';
+  document.body.appendChild(textArea);
+  textArea.select();
+
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      showCopySuccess(button);
+    } else {
+      alert('复制失败，请手动复制');
+    }
+  } catch (err) {
+    console.error('复制失败:', err);
+    alert('复制失败，请手动复制');
+  }
+
+  document.body.removeChild(textArea);
+}
+
+// 显示复制成功提示
+function showCopySuccess(button) {
+  const originalText = button.textContent;
+  button.textContent = '✅ 已复制';
+  button.classList.add('copied');
+
+  setTimeout(() => {
+    button.textContent = originalText;
+    button.classList.remove('copied');
+  }, 2000);
 }
 
 // 删除邮件
