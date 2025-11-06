@@ -10,6 +10,7 @@ let sidebarTotalPages = 1;
 const authScreen = document.getElementById('auth-screen');
 const mainScreen = document.getElementById('main-screen');
 const authBtn = document.getElementById('auth-btn');
+const authImportBtn = document.getElementById('auth-import-btn');
 const authWaiting = document.getElementById('auth-waiting');
 const authError = document.getElementById('auth-error');
 
@@ -131,7 +132,41 @@ function renderSidebarAccounts() {
   accountsSidebarList.innerHTML = '';
 
   if (currentAccounts.length === 0) {
-    accountsSidebarList.innerHTML = '<div style="padding: 20px; text-align: center; color: #80868b; font-size: 12px;">暂无账号</div>';
+    accountsSidebarList.innerHTML = `
+      <div style="padding: 20px; text-align: center;">
+        <div style="color: #80868b; font-size: 13px; margin-bottom: 16px;">暂无账号</div>
+        <button id="sidebar-import-btn" class="btn btn-sm" style="width: 100%; margin-bottom: 8px;">
+          📥 导入账号
+        </button>
+        <div style="color: #999; font-size: 11px; margin-top: 12px;">
+          或点击顶部 ➕ 添加新账号
+        </div>
+      </div>
+    `;
+
+    // 绑定导入按钮事件
+    const sidebarImportBtn = document.getElementById('sidebar-import-btn');
+    if (sidebarImportBtn) {
+      sidebarImportBtn.addEventListener('click', async () => {
+        const result = await window.gmailAPI.account.import();
+
+        if (result.success) {
+          const summary = result.results.map(r => {
+            if (r.status === 'added') return `✓ ${r.email} - 已添加`;
+            if (r.status === 'updated') return `✓ ${r.email} - 已更新`;
+            return `✗ ${r.email} - ${r.error}`;
+          }).join('\n');
+
+          alert(`导入完成！\n${summary}`);
+          await loadSidebarAccounts();
+          await loadActiveAccount();
+          await loadMessages();
+        } else if (result.error !== 'User cancelled') {
+          alert('导入失败: ' + result.error);
+        }
+      });
+    }
+
     accountsPagination.classList.add('hidden');
     return;
   }
@@ -294,6 +329,7 @@ authBtn.addEventListener('click', async () => {
       authWaiting.classList.remove('hidden');
       authError.classList.add('hidden');
       authBtn.classList.add('hidden');
+      authImportBtn.classList.add('hidden');
     } else {
       showError(authError, result.error);
       authBtn.textContent = '授权 Gmail 访问';
@@ -304,6 +340,41 @@ authBtn.addEventListener('click', async () => {
     showError(authError, error.message);
     authBtn.textContent = '授权 Gmail 访问';
     authBtn.disabled = false;
+  }
+});
+
+// 授权界面导入账号按钮
+authImportBtn.addEventListener('click', async () => {
+  console.log('授权界面导入按钮被点击');
+  authImportBtn.disabled = true;
+  authImportBtn.textContent = '正在导入...';
+
+  try {
+    const result = await window.gmailAPI.account.import();
+
+    if (result.success) {
+      const summary = result.results.map(r => {
+        if (r.status === 'added') return `✓ ${r.email} - 已添加`;
+        if (r.status === 'updated') return `✓ ${r.email} - 已更新`;
+        return `✗ ${r.email} - ${r.error}`;
+      }).join('\n');
+
+      alert(`导入完成！\n${summary}`);
+
+      // 切换到主界面
+      showMainScreen();
+      await loadSidebarAccounts();
+      await loadActiveAccount();
+      await loadMessages();
+    } else if (result.error !== 'User cancelled') {
+      showError(authError, '导入失败: ' + result.error);
+    }
+  } catch (error) {
+    console.error('导入过程出错:', error);
+    showError(authError, error.message);
+  } finally {
+    authImportBtn.textContent = '📥 导入已有账号';
+    authImportBtn.disabled = false;
   }
 });
 
@@ -815,6 +886,9 @@ importAccountsBtn.addEventListener('click', async () => {
 
     showSuccess(accountsSuccess, `导入完成！\n${summary}`);
     await loadAccounts();
+    await loadSidebarAccounts();
+    await loadActiveAccount();
+    await loadMessages();
   } else if (result.error !== 'User cancelled') {
     showError(accountsError, result.error);
   }

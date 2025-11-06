@@ -410,6 +410,9 @@ class DatabaseService {
     return accounts.map(account => ({
       email: account.email,
       password: account.password,
+      access_token: account.access_token,
+      refresh_token: account.refresh_token,
+      token_expiry: account.token_expiry,
       created_at: account.created_at
     }));
   }
@@ -424,14 +427,23 @@ class DatabaseService {
         const existing = this.getAccountByEmail(account.email);
 
         if (existing) {
-          // 更新已存在的账号
+          // 更新已存在的账号（包括token）
           this.updateAccount(existing.id, {
-            password: account.password
+            password: account.password,
+            access_token: account.access_token,
+            refresh_token: account.refresh_token,
+            token_expiry: account.token_expiry
           });
           results.push({ email: account.email, status: 'updated' });
         } else {
-          // 添加新账号
-          this.addAccount(account.email, account.password);
+          // 添加新账号（包括token）
+          const tokens = account.access_token ? {
+            access_token: account.access_token,
+            refresh_token: account.refresh_token,
+            expiry_date: account.token_expiry
+          } : null;
+
+          this.addAccount(account.email, account.password, tokens);
           results.push({ email: account.email, status: 'added' });
         }
       } catch (error) {
