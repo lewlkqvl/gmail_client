@@ -65,32 +65,43 @@ async function copyToClipboard(text, showFeedback = true) {
   // 方法1: 优先使用 Electron clipboard API（最可靠）
   if (window.gmailAPI && window.gmailAPI.copyToClipboard) {
     try {
+      console.log('[复制] 尝试方法1: Electron clipboard API');
       const result = window.gmailAPI.copyToClipboard(text);
-      if (result.success) {
+      console.log('[复制] Electron clipboard 返回结果:', result);
+
+      if (result && result.success === true) {
         success = true;
         console.log('✓ Electron clipboard 复制成功');
+      } else {
+        console.warn('✗ Electron clipboard 返回失败:', result);
       }
     } catch (error) {
-      console.warn('Electron clipboard 失败，尝试备用方法:', error);
+      console.error('✗ Electron clipboard 异常:', error);
     }
+  } else {
+    console.log('[复制] Electron clipboard API 不可用');
   }
 
   // 方法2: 尝试使用现代 Clipboard API
   if (!success) {
     try {
+      console.log('[复制] 尝试方法2: Navigator Clipboard API');
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
         success = true;
         console.log('✓ Navigator clipboard 复制成功');
+      } else {
+        console.log('[复制] Navigator Clipboard API 不可用');
       }
     } catch (error) {
-      console.warn('Clipboard API 失败，尝试备用方法:', error);
+      console.error('✗ Navigator clipboard 失败:', error);
     }
   }
 
   // 方法3: 使用传统的 execCommand 方法
   if (!success) {
     try {
+      console.log('[复制] 尝试方法3: document.execCommand');
       const textarea = document.createElement('textarea');
       textarea.value = text;
       textarea.style.position = 'fixed';
@@ -106,30 +117,38 @@ async function copyToClipboard(text, showFeedback = true) {
       textarea.setSelectionRange(0, textarea.value.length);
 
       // 执行复制命令
-      success = document.execCommand('copy');
+      const execResult = document.execCommand('copy');
+      console.log('[复制] execCommand 返回结果:', execResult);
 
       document.body.removeChild(textarea);
 
-      if (success) {
+      if (execResult === true) {
+        success = true;
         console.log('✓ execCommand 复制成功');
+      } else {
+        console.warn('✗ execCommand 返回 false');
       }
     } catch (error) {
-      console.error('execCommand 复制失败:', error);
+      console.error('✗ execCommand 异常:', error);
     }
   }
 
-  if (success && showFeedback) {
+  // 最终判断和反馈
+  console.log('[复制] 最终结果 - success:', success);
+
+  if (success === true && showFeedback) {
     // 显示复制成功的提示
+    console.log('✅ 复制成功，显示成功提示');
     showCopyToast('✓ 已复制');
     return true;
-  } else if (!success && showFeedback) {
+  } else if (success !== true && showFeedback) {
     // 显示手动复制提示
-    console.error('所有复制方法都失败了');
+    console.error('❌ 所有复制方法都失败了，显示手动复制弹窗');
     showManualCopyPrompt(text);
     return false;
   }
 
-  return success;
+  return success === true;
 }
 
 // 显示复制成功提示框

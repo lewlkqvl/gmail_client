@@ -32,9 +32,25 @@ contextBridge.exposeInMainWorld('gmailAPI', {
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   copyToClipboard: (text) => {
     try {
+      if (!text || typeof text !== 'string') {
+        console.error('[Preload] 复制失败: 无效的文本参数', text);
+        return { success: false, error: 'Invalid text parameter' };
+      }
+
+      console.log('[Preload] 尝试复制到剪贴板:', text.substring(0, 50));
       clipboard.writeText(text);
-      return { success: true };
+
+      // 验证是否真的复制成功
+      const clipboardContent = clipboard.readText();
+      if (clipboardContent === text) {
+        console.log('[Preload] ✓ 复制成功，已验证剪贴板内容');
+        return { success: true };
+      } else {
+        console.error('[Preload] ✗ 复制失败: 剪贴板内容不匹配');
+        return { success: false, error: 'Clipboard content mismatch' };
+      }
     } catch (error) {
+      console.error('[Preload] ✗ 复制异常:', error);
       return { success: false, error: error.message };
     }
   },
