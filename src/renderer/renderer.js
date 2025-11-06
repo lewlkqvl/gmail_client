@@ -62,17 +62,33 @@ function isWebMode() {
 async function copyToClipboard(text, showFeedback = true) {
   let success = false;
 
-  // 方法1: 尝试使用现代 Clipboard API
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-      success = true;
+  // 方法1: 优先使用 Electron clipboard API（最可靠）
+  if (window.gmailAPI && window.gmailAPI.copyToClipboard) {
+    try {
+      const result = window.gmailAPI.copyToClipboard(text);
+      if (result.success) {
+        success = true;
+        console.log('✓ Electron clipboard 复制成功');
+      }
+    } catch (error) {
+      console.warn('Electron clipboard 失败，尝试备用方法:', error);
     }
-  } catch (error) {
-    console.warn('Clipboard API 失败，尝试备用方法:', error);
   }
 
-  // 方法2: 使用传统的 execCommand 方法
+  // 方法2: 尝试使用现代 Clipboard API
+  if (!success) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        success = true;
+        console.log('✓ Navigator clipboard 复制成功');
+      }
+    } catch (error) {
+      console.warn('Clipboard API 失败，尝试备用方法:', error);
+    }
+  }
+
+  // 方法3: 使用传统的 execCommand 方法
   if (!success) {
     try {
       const textarea = document.createElement('textarea');
@@ -93,6 +109,10 @@ async function copyToClipboard(text, showFeedback = true) {
       success = document.execCommand('copy');
 
       document.body.removeChild(textarea);
+
+      if (success) {
+        console.log('✓ execCommand 复制成功');
+      }
     } catch (error) {
       console.error('execCommand 复制失败:', error);
     }
@@ -104,6 +124,7 @@ async function copyToClipboard(text, showFeedback = true) {
     return true;
   } else if (!success && showFeedback) {
     // 显示手动复制提示
+    console.error('所有复制方法都失败了');
     showManualCopyPrompt(text);
     return false;
   }

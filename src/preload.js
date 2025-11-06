@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, clipboard } = require('electron');
 
 // 暴露安全的 API 给渲染进程
 contextBridge.exposeInMainWorld('gmailAPI', {
@@ -30,6 +30,14 @@ contextBridge.exposeInMainWorld('gmailAPI', {
 
   // 工具函数
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  copyToClipboard: (text) => {
+    try {
+      clipboard.writeText(text);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
 
   // 事件监听
   onAuthSuccess: (callback) => {
