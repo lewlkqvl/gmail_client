@@ -472,9 +472,28 @@ class DatabaseService {
 
     // 如果当前没有活动账号，自动设置第一个导入的账号为活动账号
     const currentActiveAccount = this.getActiveAccount();
+    console.log('importAccounts summary:', {
+      totalAccounts: accounts.length,
+      results: results,
+      firstAddedAccountId: firstAddedAccountId,
+      hasCurrentActiveAccount: !!currentActiveAccount,
+      currentActiveAccountId: currentActiveAccount ? currentActiveAccount.id : null
+    });
+
     if (!currentActiveAccount && firstAddedAccountId) {
       this.setActiveAccount(firstAddedAccountId);
-      console.log('Auto-set first imported account as active:', firstAddedAccountId);
+      console.log('✅ Auto-set first imported account as active:', firstAddedAccountId);
+
+      // 验证设置是否成功
+      const verifyActiveAccount = this.getActiveAccount();
+      console.log('Verification - Active account after set:', {
+        id: verifyActiveAccount ? verifyActiveAccount.id : null,
+        email: verifyActiveAccount ? verifyActiveAccount.email : null
+      });
+    } else if (currentActiveAccount) {
+      console.log('ℹ️ Active account already exists, not changing:', currentActiveAccount.email);
+    } else if (!firstAddedAccountId) {
+      console.log('⚠️ No valid account to set as active (all accounts lack tokens)');
     }
 
     return results;

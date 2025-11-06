@@ -274,8 +274,15 @@ class GmailService {
     // 从数据库加载活动账号
     const activeAccount = this.dbService.getActiveAccount();
 
+    console.log('listMessages called:', {
+      hasActiveAccount: !!activeAccount,
+      activeAccountId: activeAccount ? activeAccount.id : null,
+      activeAccountEmail: activeAccount ? activeAccount.email : null,
+      expectedAccountId: expectedAccountId
+    });
+
     if (!activeAccount || !activeAccount.id) {
-      throw new Error('No active account');
+      throw new Error('No active account. Please import or add an account first.');
     }
 
     // 验证账号匹配
