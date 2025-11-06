@@ -52,9 +52,9 @@ class ApiService {
           });
         }
 
-        // 备份当前账号状态
-        const currentAccountId = this.gmailService.currentAccountId;
-        const needRestore = currentAccountId !== account.id;
+        // 备份当前活动账号
+        const originalActiveAccount = this.dbService.getActiveAccount();
+        const needRestore = !originalActiveAccount || originalActiveAccount.id !== account.id;
 
         try {
           // 临时切换到目标账号（如果需要）
@@ -65,9 +65,10 @@ class ApiService {
           // 获取最后一封邮件（从数据库）
           let lastMessage = this.dbService.getMessages(account.id, 1)[0];
 
-          // 如果数据库中没有邮件，或需要更新的邮件，从Gmail API同步
+          // 如果数据库中没有邮件，从Gmail API同步
           if (!lastMessage) {
-            await this.gmailService.syncMessages(1);
+            // 同步1封邮件，传递accountId进行验证
+            await this.gmailService.syncMessages(1, account.id);
             lastMessage = this.dbService.getMessages(account.id, 1)[0];
           }
 
@@ -78,8 +79,17 @@ class ApiService {
             });
           }
 
+          // 确保lastMessage有id属性
+          if (!lastMessage.id && !lastMessage.message_id) {
+            return res.status(500).json({
+              success: false,
+              error: 'Invalid message data: missing message ID'
+            });
+          }
+
           // 获取完整邮件内容（包括body）
-          const fullMessage = await this.gmailService.getMessage(lastMessage.id);
+          const messageId = lastMessage.id || lastMessage.message_id;
+          const fullMessage = await this.gmailService.getMessage(messageId);
 
           res.json({
             success: true,
@@ -100,9 +110,9 @@ class ApiService {
           });
         } finally {
           // 恢复原来的账号（如果需要）
-          if (needRestore && currentAccountId) {
+          if (needRestore && originalActiveAccount && originalActiveAccount.id) {
             try {
-              await this.gmailService.switchAccount(currentAccountId);
+              await this.gmailService.switchAccount(originalActiveAccount.id);
             } catch (error) {
               console.error('Error restoring account:', error);
             }
