@@ -109,14 +109,12 @@ function startAuthServer() {
                   .success { color: #388e3c; }
                   .email { font-weight: bold; color: #1976d2; }
                 </style>
-                <script>
-                  setTimeout(() => window.close(), 3000);
-                </script>
               </head>
               <body>
                 <h1 class="success">✅ 授权成功！</h1>
                 <p>账号: <span class="email">${email}</span></p>
                 <p>窗口将在3秒后自动关闭...</p>
+                <p style="margin-top: 20px; color: #666; font-size: 14px;">您可以手动关闭此窗口</p>
               </body>
               </html>
             `);
@@ -546,16 +544,39 @@ async function openInPrivateMode(targetUrl) {
     const pages = await authBrowser.pages();
     const page = pages[0] || await authBrowser.newPage();
 
-    // 导航到授权 URL
-    await page.goto(targetUrl, { waitUntil: 'networkidle2' });
-
-    console.log('Opened authorization page in incognito mode');
-
-    // 监听浏览器关闭事件
+    // 监听浏览器关闭事件 - 在导航之前设置
     authBrowser.on('disconnected', () => {
-      console.log('Browser closed by user');
+      console.log('Browser disconnected');
       authBrowser = null;
     });
+
+    // 忽略页面错误和目标关闭错误，这些在授权成功后关闭浏览器时是正常的
+    page.on('error', (error) => {
+      console.log('Page error (expected during close):', error.message);
+    });
+
+    page.on('close', () => {
+      console.log('Page closed');
+    });
+
+    // 导航到授权 URL，捕获导航错误（浏览器关闭时会抛出）
+    try {
+      await page.goto(targetUrl, {
+        waitUntil: 'networkidle2',
+        timeout: 60000 // 增加超时时间
+      });
+      console.log('Opened authorization page in incognito mode');
+    } catch (navError) {
+      // 如果是浏览器关闭导致的导航错误，忽略它
+      if (navError.message.includes('Target closed') ||
+          navError.message.includes('Session closed') ||
+          navError.message.includes('Navigation failed')) {
+        console.log('Navigation interrupted (browser closed), this is expected');
+      } else {
+        console.error('Navigation error:', navError);
+        throw navError;
+      }
+    }
 
   } catch (error) {
     console.error('Error launching Chrome with Puppeteer:', error);
