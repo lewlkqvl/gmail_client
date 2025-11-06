@@ -8,8 +8,107 @@ class ApiAdapter {
     // 检测运行模式
     this.isElectron = typeof window !== 'undefined' && window.gmailAPI !== undefined;
     this.mode = this.isElectron ? 'electron' : 'web';
+    this._authSuccessCallback = null;
+    this._authFailedCallback = null;
+    this._authPollingInterval = null;
 
     console.log(`🔧 API Adapter initialized in ${this.mode} mode`);
+
+    // Web模式下设置授权监听机制
+    if (!this.isElectron) {
+      this._setupWebAuthListeners();
+    }
+  }
+
+  /**
+   * 设置Web模式的授权监听（多种方式）
+   */
+  _setupWebAuthListeners() {
+    // 方式1：监听 postMessage
+    window.addEventListener('message', (event) => {
+      // 验证来源
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
+      const data = event.data;
+      if (data && data.type === 'gmail-auth-success') {
+        console.log('📨 收到postMessage授权成功通知:', data);
+        this._handleAuthSuccess(data);
+      }
+    });
+
+    // 方式2：监听 localStorage 变化
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'gmail-auth-success' && event.newValue) {
+        try {
+          const data = JSON.parse(event.newValue);
+          console.log('📦 收到localStorage授权成功通知:', data);
+          this._handleAuthSuccess(data);
+          // 清除标记
+          localStorage.removeItem('gmail-auth-success');
+        } catch (e) {
+          console.error('解析localStorage数据失败:', e);
+        }
+      }
+    });
+
+    // 方式3：使用 BroadcastChannel（如果支持）
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('gmail-auth-channel');
+        channel.addEventListener('message', (event) => {
+          const data = event.data;
+          if (data && data.type === 'gmail-auth-success') {
+            console.log('📡 收到BroadcastChannel授权成功通知:', data);
+            this._handleAuthSuccess(data);
+          }
+        });
+      } catch (e) {
+        console.warn('BroadcastChannel不可用:', e);
+      }
+    }
+
+    // 方式4：页面可见时检查localStorage（处理同标签页授权的情况）
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        this._checkStoredAuthSuccess();
+      }
+    });
+
+    // 方式5：定期轮询（最后的备选方案，启动时检查一次）
+    this._checkStoredAuthSuccess();
+  }
+
+  /**
+   * 检查localStorage中存储的授权成功标记
+   */
+  _checkStoredAuthSuccess() {
+    try {
+      const stored = localStorage.getItem('gmail-auth-success');
+      if (stored) {
+        const data = JSON.parse(stored);
+        // 检查时间戳，只处理5分钟内的
+        if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+          console.log('✅ 发现localStorage中的授权成功标记:', data);
+          this._handleAuthSuccess(data);
+        }
+        // 清除标记
+        localStorage.removeItem('gmail-auth-success');
+      }
+    } catch (e) {
+      console.error('检查localStorage失败:', e);
+    }
+  }
+
+  /**
+   * 处理授权成功
+   */
+  _handleAuthSuccess(data) {
+    if (this._authSuccessCallback) {
+      console.log('🎉 触发授权成功回调');
+      this._authSuccessCallback(data);
+    }
   }
 
   /**

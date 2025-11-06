@@ -364,11 +364,54 @@ class WebServer {
                 <body>
                   <h1 class="success">✅ 授权成功！</h1>
                   <p>账号: <span class="email">${email}</span></p>
-                  <p><a href="/">返回应用</a></p>
+                  <p id="message">正在返回应用...</p>
                   <script>
-                    setTimeout(() => {
-                      window.location.href = '/';
-                    }, 2000);
+                    (function() {
+                      const authData = {
+                        type: 'gmail-auth-success',
+                        email: '${email}',
+                        timestamp: Date.now()
+                      };
+
+                      // 方式1：通过 postMessage 通知父窗口（如果是从应用打开的）
+                      if (window.opener && !window.opener.closed) {
+                        try {
+                          window.opener.postMessage(authData, window.location.origin);
+                          console.log('已通过postMessage通知主窗口');
+                        } catch (e) {
+                          console.error('postMessage失败:', e);
+                        }
+                      }
+
+                      // 方式2：使用 localStorage 作为备选方案
+                      try {
+                        localStorage.setItem('gmail-auth-success', JSON.stringify(authData));
+                        console.log('已保存授权状态到localStorage');
+                      } catch (e) {
+                        console.error('localStorage保存失败:', e);
+                      }
+
+                      // 方式3：使用 BroadcastChannel（如果浏览器支持）
+                      if (typeof BroadcastChannel !== 'undefined') {
+                        try {
+                          const channel = new BroadcastChannel('gmail-auth-channel');
+                          channel.postMessage(authData);
+                          channel.close();
+                          console.log('已通过BroadcastChannel通知');
+                        } catch (e) {
+                          console.error('BroadcastChannel失败:', e);
+                        }
+                      }
+
+                      // 2秒后跳转回主页或关闭窗口
+                      setTimeout(() => {
+                        if (window.opener && !window.opener.closed) {
+                          window.close();
+                        } else {
+                          window.location.href = '/';
+                        }
+                      }, 2000);
+                    })();
                   </script>
                 </body>
                 </html>

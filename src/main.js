@@ -17,6 +17,8 @@ let dbService;
 let apiService;
 let authServer = null;
 let authBrowser = null; // puppeteer 浏览器实例
+let authInProgress = false; // 授权进行中标记
+let authSucceeded = false; // 授权成功标记
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -46,6 +48,10 @@ function startAuthServer() {
     if (authServer) {
       authServer.close();
     }
+
+    // 重置授权状态
+    authInProgress = true;
+    authSucceeded = false;
 
     authServer = http.createServer(async (req, res) => {
       const parsedUrl = url.parse(req.url, true);
@@ -101,6 +107,10 @@ function startAuthServer() {
             // 自动保存授权码
             const email = await gmailService.setAuthCode(code);
 
+            // 标记授权成功
+            authSucceeded = true;
+            authInProgress = false;
+
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(`
               <!DOCTYPE html>
@@ -126,6 +136,7 @@ function startAuthServer() {
             // 通知前端授权成功
             if (mainWindow) {
               mainWindow.webContents.send('auth:success', { email });
+              console.log('✅ 已发送授权成功通知到前端');
             }
 
             // 3秒后关闭浏览器和服务器
@@ -142,6 +153,10 @@ function startAuthServer() {
               }
             }, 3000);
           } catch (error) {
+            // 标记授权失败
+            authInProgress = false;
+            // 注意：不设置authSucceeded，保持false
+
             res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(`
               <!DOCTYPE html>
@@ -162,9 +177,10 @@ function startAuthServer() {
               </html>
             `);
 
-            // 通知前端授权失败
-            if (mainWindow) {
+            // 通知前端授权失败（只在真正失败时发送）
+            if (mainWindow && !authSucceeded) {
               mainWindow.webContents.send('auth:failed', error.message);
+              console.log('❌ 已发送授权失败通知到前端');
             }
 
             // 3秒后关闭浏览器和服务器
@@ -551,6 +567,17 @@ async function openInPrivateMode(targetUrl) {
     // 监听浏览器关闭事件 - 在导航之前设置
     authBrowser.on('disconnected', () => {
       console.log('Browser disconnected');
+
+      // 如果授权正在进行但还没成功，且浏览器被关闭，通知前端
+      if (authInProgress && !authSucceeded) {
+        console.log('⚠️ 浏览器在授权完成前被关闭');
+        if (mainWindow) {
+          // 不发送auth:failed，让用户可以重试
+          // mainWindow.webContents.send('auth:failed', '授权窗口已关闭');
+        }
+        authInProgress = false;
+      }
+
       authBrowser = null;
     });
 
