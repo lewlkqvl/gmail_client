@@ -58,36 +58,138 @@ function isWebMode() {
   return typeof window.process === 'undefined';
 }
 
-// 复制文本到剪贴板
+// 复制文本到剪贴板（多种方法兼容）
 async function copyToClipboard(text, showFeedback = true) {
+  let success = false;
+
+  // 方法1: 尝试使用现代 Clipboard API
   try {
-    await navigator.clipboard.writeText(text);
-    if (showFeedback) {
-      // 显示复制成功的提示
-      const toast = document.createElement('div');
-      toast.className = 'copy-toast';
-      toast.textContent = '✓ 已复制';
-      document.body.appendChild(toast);
-
-      setTimeout(() => {
-        toast.classList.add('show');
-      }, 10);
-
-      setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => {
-          document.body.removeChild(toast);
-        }, 300);
-      }, 1500);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      success = true;
     }
-    return true;
   } catch (error) {
-    console.error('复制失败:', error);
-    if (showFeedback) {
-      alert('复制失败: ' + error.message);
+    console.warn('Clipboard API 失败，尝试备用方法:', error);
+  }
+
+  // 方法2: 使用传统的 execCommand 方法
+  if (!success) {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+
+      textarea.focus();
+      textarea.select();
+
+      // 尝试选择所有文本（兼容iOS）
+      textarea.setSelectionRange(0, textarea.value.length);
+
+      // 执行复制命令
+      success = document.execCommand('copy');
+
+      document.body.removeChild(textarea);
+    } catch (error) {
+      console.error('execCommand 复制失败:', error);
     }
+  }
+
+  if (success && showFeedback) {
+    // 显示复制成功的提示
+    showCopyToast('✓ 已复制');
+    return true;
+  } else if (!success && showFeedback) {
+    // 显示手动复制提示
+    showManualCopyPrompt(text);
     return false;
   }
+
+  return success;
+}
+
+// 显示复制成功提示框
+function showCopyToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'copy-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, 300);
+  }, 1500);
+}
+
+// 显示手动复制提示框
+function showManualCopyPrompt(text) {
+  const modal = document.createElement('div');
+  modal.className = 'manual-copy-modal';
+  modal.innerHTML = `
+    <div class="manual-copy-content">
+      <div class="manual-copy-header">
+        <h3>📋 请手动复制</h3>
+        <button class="manual-copy-close">&times;</button>
+      </div>
+      <div class="manual-copy-body">
+        <p>自动复制失败，请手动选择并复制以下内容：</p>
+        <div class="manual-copy-text-container">
+          <input type="text" class="manual-copy-text" value="${escapeHtml(text)}" readonly>
+          <button class="manual-copy-select-btn">全选</button>
+        </div>
+        <p class="manual-copy-hint">💡 提示：点击"全选"按钮，然后按 Ctrl+C (Mac: Cmd+C) 复制</p>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // 自动选中文本
+  const input = modal.querySelector('.manual-copy-text');
+  input.focus();
+  input.select();
+
+  // 关闭按钮事件
+  const closeBtn = modal.querySelector('.manual-copy-close');
+  closeBtn.onclick = () => {
+    modal.classList.add('fade-out');
+    setTimeout(() => {
+      if (document.body.contains(modal)) {
+        document.body.removeChild(modal);
+      }
+    }, 300);
+  };
+
+  // 全选按钮事件
+  const selectBtn = modal.querySelector('.manual-copy-select-btn');
+  selectBtn.onclick = () => {
+    input.focus();
+    input.select();
+    input.setSelectionRange(0, input.value.length);
+  };
+
+  // 点击背景关闭
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      closeBtn.click();
+    }
+  };
+
+  // 添加淡入动画
+  setTimeout(() => {
+    modal.classList.add('show');
+  }, 10);
 }
 
 // Web模式导入账号辅助函数
