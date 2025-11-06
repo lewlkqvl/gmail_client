@@ -50,6 +50,51 @@ const nextPageBtn = document.getElementById('next-page-btn');
 const pageInfo = document.getElementById('page-info');
 const sidebarAddAccountBtn = document.getElementById('sidebar-add-account-btn');
 
+// ============ 工具函数 ============
+
+// 检测是否为Web模式
+function isWebMode() {
+  // Electron环境中会有window.process
+  return typeof window.process === 'undefined';
+}
+
+// Web模式导入账号辅助函数
+async function importAccountsInWebMode() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) {
+        resolve({ success: false, error: 'User cancelled' });
+        return;
+      }
+
+      try {
+        const text = await file.text();
+        const accounts = JSON.parse(text);
+
+        if (!Array.isArray(accounts)) {
+          resolve({ success: false, error: 'Invalid file format' });
+          return;
+        }
+
+        // 调用Web API导入账号
+        const result = await window.gmailAPI.account.import(accounts);
+        resolve(result);
+      } catch (error) {
+        resolve({ success: false, error: error.message });
+      }
+    };
+
+    input.click();
+  });
+}
+
+// ============ 初始化 ============
+
 // 初始化
 async function initialize() {
   const result = await window.gmailAPI.checkAuth();
@@ -149,7 +194,10 @@ function renderSidebarAccounts() {
     const sidebarImportBtn = document.getElementById('sidebar-import-btn');
     if (sidebarImportBtn) {
       sidebarImportBtn.addEventListener('click', async () => {
-        const result = await window.gmailAPI.account.import();
+        // Web模式需要先选择文件
+        const result = isWebMode()
+          ? await importAccountsInWebMode()
+          : await window.gmailAPI.account.import();
 
         if (result.success) {
           const summary = result.results.map(r => {
@@ -351,7 +399,10 @@ authImportBtn.addEventListener('click', async () => {
   authImportBtn.textContent = '正在导入...';
 
   try {
-    const result = await window.gmailAPI.account.import();
+    // Web模式需要先选择文件
+    const result = isWebMode()
+      ? await importAccountsInWebMode()
+      : await window.gmailAPI.account.import();
 
     if (result.success) {
       const summary = result.results.map(r => {
@@ -1057,7 +1108,10 @@ addAccountBtn.addEventListener('click', async () => {
 
 // 导入账号
 importAccountsBtn.addEventListener('click', async () => {
-  const result = await window.gmailAPI.account.import();
+  // Web模式需要先选择文件
+  const result = isWebMode()
+    ? await importAccountsInWebMode()
+    : await window.gmailAPI.account.import();
 
   if (result.success) {
     const summary = result.results.map(r => {
@@ -1081,7 +1135,25 @@ exportAccountsBtn.addEventListener('click', async () => {
   const result = await window.gmailAPI.account.export();
 
   if (result.success) {
-    showSuccess(accountsSuccess, `成功导出 ${result.count} 个账号到 ${result.filePath}`);
+    // Web模式：直接下载JSON文件
+    if (result.accounts) {
+      const jsonData = JSON.stringify(result.accounts, null, 2);
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gmail_accounts.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showSuccess(accountsSuccess, `成功导出 ${result.count} 个账号`);
+    }
+    // Electron模式：显示文件路径
+    else if (result.filePath) {
+      showSuccess(accountsSuccess, `成功导出 ${result.count} 个账号到 ${result.filePath}`);
+    }
   } else if (result.error !== 'User cancelled') {
     showError(accountsError, result.error);
   }

@@ -149,6 +149,8 @@ class ApiAdapter {
       'switchAccount': { method: 'POST', url: '/api/account/switch', body: (args) => ({ accountId: args[0] }) },
       'deleteAccount': { method: 'DELETE', url: `/api/account/delete/${args[0]}` },
       'deleteAllAccounts': { method: 'DELETE', url: '/api/account/deleteAll' },
+      'exportAccounts': { method: 'GET', url: '/api/account/export' },
+      'importAccounts': { method: 'POST', url: '/api/account/import', body: (args) => ({ accounts: args[0] }) },
     };
 
     const apiConfig = methodMap[method];

@@ -293,6 +293,44 @@ class WebServer {
       }
     });
 
+    // 导出账号（返回JSON数据）
+    this.app.get('/api/account/export', (req, res) => {
+      try {
+        const accounts = this.dbService.exportAccounts();
+        res.json({
+          success: true,
+          accounts: accounts,
+          count: accounts.length
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // 导入账号（接收JSON数据）
+    this.app.post('/api/account/import', (req, res) => {
+      try {
+        const { accounts } = req.body;
+
+        if (!accounts || !Array.isArray(accounts)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid request: accounts array is required'
+          });
+        }
+
+        const results = this.dbService.importAccounts(accounts);
+
+        res.json({
+          success: true,
+          results: results,
+          count: accounts.length
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     // 获取邮件统计
     this.app.get('/api/gmail/getStats', (req, res) => {
       try {
