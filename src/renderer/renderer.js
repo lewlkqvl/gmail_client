@@ -263,8 +263,9 @@ nextPageBtn.addEventListener('click', () => {
 });
 
 // 侧边栏添加账号按钮
-sidebarAddAccountBtn.addEventListener('click', () => {
-  openModal('accounts-modal');
+sidebarAddAccountBtn.addEventListener('click', async () => {
+  showModal('accounts-modal');
+  await loadAccounts();
 });
 
 // 加载活动账号信息
