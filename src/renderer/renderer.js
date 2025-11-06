@@ -770,7 +770,7 @@ function renderMessageDetail(message) {
   document.getElementById('detail-subject').textContent = message.subject || '(无主题)';
   document.getElementById('detail-from').textContent = message.from || message.from_email || '';
   document.getElementById('detail-to').textContent = message.to || message.to_email || '';
-  document.getElementById('detail-date').textContent = message.date || '';
+  document.getElementById('detail-date').textContent = formatDateDetailed(message.date) || '';
 
   // 渲染邮件正文
   const bodyElement = document.getElementById('detail-body');
@@ -1432,23 +1432,88 @@ function extractEmail(emailString) {
   return match ? match[1] : emailString;
 }
 
+// 格式化日期为本地时间（邮件列表简短格式）
 function formatDate(dateString) {
   try {
+    if (!dateString) return '';
+
     const date = new Date(dateString);
+
+    // 检查日期是否有效
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
+
     const now = new Date();
     const diff = now - date;
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
+    // 今天：显示时间
     if (days === 0) {
-      return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    } else if (days === 1) {
-      return '昨天';
-    } else if (days < 7) {
+      return date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    }
+    // 昨天
+    else if (days === 1) {
+      return '昨天 ' + date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    }
+    // 一周内
+    else if (days < 7) {
       return days + ' 天前';
-    } else {
-      return date.toLocaleDateString('zh-CN');
+    }
+    // 今年内：显示月日
+    else if (date.getFullYear() === now.getFullYear()) {
+      return date.toLocaleDateString('zh-CN', {
+        month: 'numeric',
+        day: 'numeric'
+      });
+    }
+    // 更早：显示年月日
+    else {
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+      });
     }
   } catch (error) {
+    console.error('日期格式化失败:', error, dateString);
+    return dateString;
+  }
+}
+
+// 格式化日期为完整本地时间（邮件详情完整格式）
+function formatDateDetailed(dateString) {
+  try {
+    if (!dateString) return '';
+
+    const date = new Date(dateString);
+
+    // 检查日期是否有效
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
+
+    // 返回完整的本地日期时间
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      timeZoneName: 'short'
+    });
+  } catch (error) {
+    console.error('详细日期格式化失败:', error, dateString);
     return dateString;
   }
 }
