@@ -567,11 +567,12 @@ async function openInPrivateMode(targetUrl) {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled'
+        '--disable-blink-features=AutomationControlled',
+        '--window-size=1280,1024'
       ],
       defaultViewport: {
         width: 1280,
-        height: 800
+        height: 1024
       }
     });
 
