@@ -707,7 +707,16 @@ function renderMessageList(messages) {
     return;
   }
 
-  messages.forEach((message, index) => {
+  // 按日期排序：最新的邮件在前
+  const sortedMessages = [...messages].sort((a, b) => {
+    const dateA = new Date(a.date || 0);
+    const dateB = new Date(b.date || 0);
+    return dateB - dateA; // 降序：最新的在前
+  });
+
+  console.log('[邮件列表] 按日期排序完成，共', sortedMessages.length, '封邮件');
+
+  sortedMessages.forEach((message, index) => {
     const mailItem = document.createElement('div');
     mailItem.className = 'mail-item';
 
