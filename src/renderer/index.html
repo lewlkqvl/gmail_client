@@ -148,6 +148,7 @@
         <div class="modal-body">
           <div class="accounts-toolbar">
             <button id="add-account-btn" class="btn btn-primary">➕ 添加账号</button>
+            <button id="batch-auth-btn" class="btn btn-primary">🚀 批量授权</button>
             <button id="import-accounts-btn" class="btn">📥 导入</button>
             <button id="export-accounts-btn" class="btn">📤 导出</button>
             <button id="delete-all-accounts-btn" class="btn btn-danger" style="margin-left: auto;">🗑️ 删除所有</button>
@@ -159,6 +160,79 @@
 
           <div id="accounts-error" class="error hidden"></div>
           <div id="accounts-success" class="success hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 批量授权模态框 -->
+    <div id="batch-auth-modal" class="modal hidden">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2>🚀 批量授权</h2>
+          <button class="close-btn" data-close="batch-auth-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- 步骤1: 选择文件 -->
+          <div id="batch-auth-step1" class="batch-auth-step">
+            <div class="batch-auth-info">
+              <h3>📄 选择账号列表文件</h3>
+              <p>请准备一个文本文件，每行一个邮箱地址：</p>
+              <pre class="batch-auth-example">user1@gmail.com
+user2@gmail.com
+user3@gmail.com</pre>
+              <p class="hint">💡 提示：由于使用 OAuth 2.0 授权，无需提供密码</p>
+            </div>
+            <div class="form-group">
+              <label for="batch-auth-file">选择文件</label>
+              <input type="file" id="batch-auth-file" accept=".txt,.csv" />
+            </div>
+            <div class="form-group">
+              <label for="batch-auth-textarea">或直接粘贴账号列表</label>
+              <textarea id="batch-auth-textarea" rows="6" placeholder="每行一个邮箱地址"></textarea>
+            </div>
+            <div class="modal-footer">
+              <button class="btn" data-close="batch-auth-modal">取消</button>
+              <button id="batch-auth-parse-btn" class="btn btn-primary">下一步</button>
+            </div>
+          </div>
+
+          <!-- 步骤2: 确认账号列表 -->
+          <div id="batch-auth-step2" class="batch-auth-step hidden">
+            <div class="batch-auth-info">
+              <h3>📋 确认账号列表</h3>
+              <p>共解析出 <strong id="batch-auth-count">0</strong> 个账号</p>
+            </div>
+            <div id="batch-auth-list" class="batch-auth-list">
+              <!-- 账号列表将动态生成 -->
+            </div>
+            <div class="modal-footer">
+              <button id="batch-auth-back-btn" class="btn">上一步</button>
+              <button id="batch-auth-start-btn" class="btn btn-primary">开始授权</button>
+            </div>
+          </div>
+
+          <!-- 步骤3: 授权进度 -->
+          <div id="batch-auth-step3" class="batch-auth-step hidden">
+            <div class="batch-auth-info">
+              <h3>⏳ 授权进度</h3>
+              <div class="batch-auth-progress">
+                <div class="progress-bar">
+                  <div id="batch-auth-progress-bar" class="progress-bar-fill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text">
+                  <span id="batch-auth-progress-text">0 / 0</span>
+                </div>
+              </div>
+            </div>
+            <div id="batch-auth-log" class="batch-auth-log">
+              <!-- 授权日志将动态生成 -->
+            </div>
+            <div class="modal-footer">
+              <button id="batch-auth-close-btn" class="btn" disabled>关闭</button>
+            </div>
+          </div>
+
+          <div id="batch-auth-error" class="error hidden"></div>
         </div>
       </div>
     </div>

@@ -35,12 +35,31 @@ const composeSuccess = document.getElementById('compose-success');
 
 const accountsModal = document.getElementById('accounts-modal');
 const addAccountBtn = document.getElementById('add-account-btn');
+const batchAuthBtn = document.getElementById('batch-auth-btn');
 const importAccountsBtn = document.getElementById('import-accounts-btn');
 const exportAccountsBtn = document.getElementById('export-accounts-btn');
 const deleteAllAccountsBtn = document.getElementById('delete-all-accounts-btn');
 const accountsList = document.getElementById('accounts-list');
 const accountsError = document.getElementById('accounts-error');
 const accountsSuccess = document.getElementById('accounts-success');
+
+// 批量授权模态框元素
+const batchAuthModal = document.getElementById('batch-auth-modal');
+const batchAuthStep1 = document.getElementById('batch-auth-step1');
+const batchAuthStep2 = document.getElementById('batch-auth-step2');
+const batchAuthStep3 = document.getElementById('batch-auth-step3');
+const batchAuthFile = document.getElementById('batch-auth-file');
+const batchAuthTextarea = document.getElementById('batch-auth-textarea');
+const batchAuthParseBtn = document.getElementById('batch-auth-parse-btn');
+const batchAuthBackBtn = document.getElementById('batch-auth-back-btn');
+const batchAuthStartBtn = document.getElementById('batch-auth-start-btn');
+const batchAuthCloseBtn = document.getElementById('batch-auth-close-btn');
+const batchAuthCount = document.getElementById('batch-auth-count');
+const batchAuthList = document.getElementById('batch-auth-list');
+const batchAuthProgressBar = document.getElementById('batch-auth-progress-bar');
+const batchAuthProgressText = document.getElementById('batch-auth-progress-text');
+const batchAuthLog = document.getElementById('batch-auth-log');
+const batchAuthError = document.getElementById('batch-auth-error');
 
 // 侧边栏账号列表元素
 const accountsSidebarList = document.getElementById('accounts-sidebar-list');
@@ -1379,6 +1398,259 @@ deleteAllAccountsBtn.addEventListener('click', async () => {
     showError(accountsError, '删除失败: ' + error.message);
     console.error('删除所有账号时出错:', error);
   }
+});
+
+// ==================== 批量授权 ====================
+
+// 批量授权状态
+let batchAuthAccounts = [];
+let batchAuthCurrentIndex = 0;
+
+// 打开批量授权模态框
+batchAuthBtn.addEventListener('click', () => {
+  showModal('batch-auth-modal');
+  resetBatchAuthModal();
+});
+
+// 重置批量授权模态框
+function resetBatchAuthModal() {
+  batchAuthAccounts = [];
+  batchAuthCurrentIndex = 0;
+  batchAuthFile.value = '';
+  batchAuthTextarea.value = '';
+  batchAuthError.classList.add('hidden');
+
+  // 显示步骤1，隐藏其他步骤
+  batchAuthStep1.classList.remove('hidden');
+  batchAuthStep2.classList.add('hidden');
+  batchAuthStep3.classList.add('hidden');
+}
+
+// 解析账号列表
+batchAuthParseBtn.addEventListener('click', async () => {
+  let accountsText = '';
+
+  // 优先使用文件
+  if (batchAuthFile.files.length > 0) {
+    const file = batchAuthFile.files[0];
+    accountsText = await file.text();
+  }
+  // 否则使用文本框
+  else if (batchAuthTextarea.value.trim()) {
+    accountsText = batchAuthTextarea.value;
+  }
+  else {
+    showError(batchAuthError, '请选择文件或输入账号列表');
+    return;
+  }
+
+  // 解析账号列表（每行一个邮箱，或 email|password 格式，我们只取邮箱）
+  const lines = accountsText.split('\n');
+  const emails = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue; // 跳过空行和注释
+
+    // 支持 email|password 格式，只取邮箱部分
+    const email = trimmed.split('|')[0].trim();
+
+    // 简单的邮箱验证
+    if (email && email.includes('@')) {
+      emails.push(email);
+    }
+  }
+
+  if (emails.length === 0) {
+    showError(batchAuthError, '未找到有效的邮箱地址');
+    return;
+  }
+
+  // 保存账号列表
+  batchAuthAccounts = emails.map((email, index) => ({
+    index: index + 1,
+    email: email,
+    status: 'pending',
+    message: ''
+  }));
+
+  // 显示步骤2
+  batchAuthStep1.classList.add('hidden');
+  batchAuthStep2.classList.remove('hidden');
+  batchAuthError.classList.add('hidden');
+
+  // 渲染账号列表
+  renderBatchAuthList();
+});
+
+// 渲染批量授权账号列表
+function renderBatchAuthList() {
+  batchAuthCount.textContent = batchAuthAccounts.length;
+  batchAuthList.innerHTML = '';
+
+  batchAuthAccounts.forEach(account => {
+    const item = document.createElement('div');
+    item.className = 'batch-auth-list-item';
+    item.innerHTML = `
+      <span class="email">${escapeHtml(account.email)}</span>
+      <span class="status ${account.status}">${getStatusText(account.status)}</span>
+    `;
+    batchAuthList.appendChild(item);
+  });
+}
+
+// 获取状态文本
+function getStatusText(status) {
+  const statusMap = {
+    'pending': '待授权',
+    'authorizing': '授权中...',
+    'success': '✓ 成功',
+    'error': '✗ 失败',
+    'skipped': '跳过'
+  };
+  return statusMap[status] || status;
+}
+
+// 返回步骤1
+batchAuthBackBtn.addEventListener('click', () => {
+  batchAuthStep2.classList.add('hidden');
+  batchAuthStep1.classList.remove('hidden');
+});
+
+// 开始批量授权
+batchAuthStartBtn.addEventListener('click', async () => {
+  batchAuthStep2.classList.add('hidden');
+  batchAuthStep3.classList.remove('hidden');
+  batchAuthCloseBtn.disabled = true;
+
+  batchAuthCurrentIndex = 0;
+  batchAuthLog.innerHTML = '';
+
+  // 逐个授权
+  for (let i = 0; i < batchAuthAccounts.length; i++) {
+    const account = batchAuthAccounts[i];
+    batchAuthCurrentIndex = i;
+
+    // 更新进度
+    updateBatchAuthProgress();
+
+    // 检查账号是否已存在
+    const existingResult = await window.gmailAPI.account.getAll();
+    if (existingResult.success) {
+      const exists = existingResult.accounts.some(a => a.email === account.email);
+      if (exists) {
+        account.status = 'skipped';
+        account.message = '账号已存在';
+        addBatchAuthLog('info', `[${account.index}/${batchAuthAccounts.length}] ${account.email}: 账号已存在，跳过`);
+        continue;
+      }
+    }
+
+    // 开始授权
+    account.status = 'authorizing';
+    addBatchAuthLog('info', `[${account.index}/${batchAuthAccounts.length}] ${account.email}: 开始授权...`);
+
+    try {
+      // 获取授权URL
+      const authResult = await window.gmailAPI.authorize();
+      if (!authResult.success) {
+        throw new Error(authResult.error);
+      }
+
+      // 打开授权页面
+      window.gmailAPI.openExternal(authResult.authUrl);
+      addBatchAuthLog('info', `[${account.index}/${batchAuthAccounts.length}] ${account.email}: 已打开授权页面，请在浏览器中完成授权...`);
+
+      // 等待用户输入授权码
+      const code = prompt(`请在浏览器完成授权后，输入 ${account.email} 的授权码：`);
+
+      if (!code) {
+        account.status = 'error';
+        account.message = '用户取消';
+        addBatchAuthLog('error', `[${account.index}/${batchAuthAccounts.length}] ${account.email}: 用户取消授权`);
+        continue;
+      }
+
+      // 提交授权码
+      const setAuthResult = await window.gmailAPI.setAuthCode(code);
+
+      if (setAuthResult.success) {
+        account.status = 'success';
+        account.message = '授权成功';
+        addBatchAuthLog('success', `[${account.index}/${batchAuthAccounts.length}] ${account.email}: 授权成功 ✓`);
+      } else {
+        throw new Error(setAuthResult.error);
+      }
+
+    } catch (error) {
+      account.status = 'error';
+      account.message = error.message;
+      addBatchAuthLog('error', `[${account.index}/${batchAuthAccounts.length}] ${account.email}: 授权失败 - ${error.message}`);
+    }
+
+    // 更新进度
+    updateBatchAuthProgress();
+
+    // 短暂延迟，避免请求过快
+    if (i < batchAuthAccounts.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+
+  // 完成
+  const successCount = batchAuthAccounts.filter(a => a.status === 'success').length;
+  const errorCount = batchAuthAccounts.filter(a => a.status === 'error').length;
+  const skippedCount = batchAuthAccounts.filter(a => a.status === 'skipped').length;
+
+  addBatchAuthLog('info', '');
+  addBatchAuthLog('info', `========== 批量授权完成 ==========`);
+  addBatchAuthLog('success', `成功: ${successCount} 个`);
+  if (skippedCount > 0) {
+    addBatchAuthLog('info', `跳过: ${skippedCount} 个`);
+  }
+  if (errorCount > 0) {
+    addBatchAuthLog('error', `失败: ${errorCount} 个`);
+  }
+
+  batchAuthCloseBtn.disabled = false;
+
+  // 刷新账号列表
+  await loadAccounts();
+  await loadSidebarAccounts();
+  await loadActiveAccount();
+});
+
+// 更新批量授权进度
+function updateBatchAuthProgress() {
+  const total = batchAuthAccounts.length;
+  const completed = batchAuthCurrentIndex + 1;
+  const percentage = Math.round((completed / total) * 100);
+
+  batchAuthProgressBar.style.width = `${percentage}%`;
+  batchAuthProgressText.textContent = `${completed} / ${total}`;
+}
+
+// 添加批量授权日志
+function addBatchAuthLog(type, message) {
+  const logItem = document.createElement('div');
+  logItem.className = `batch-auth-log-item ${type}`;
+
+  const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+
+  logItem.innerHTML = `
+    <span class="time">${time}</span>
+    <span class="message">${escapeHtml(message)}</span>
+  `;
+
+  batchAuthLog.appendChild(logItem);
+
+  // 自动滚动到底部
+  batchAuthLog.scrollTop = batchAuthLog.scrollHeight;
+}
+
+// 关闭批量授权模态框
+batchAuthCloseBtn.addEventListener('click', () => {
+  closeModal('batch-auth-modal');
 });
 
 // ==================== 模态框管理 ====================
